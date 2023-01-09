@@ -96,11 +96,10 @@ public static class SQLiteCommands
     public static void Insert<T>(SQLiteConnection connection, ref T data, bool replaceOnConflict = true, bool updateLocalData = true)
     {
         Type type = typeof(T);
+        TableAttribute tableAttribute = AttributeHelper.GetTableAttribute(type);
 
-        AttributeHelper.CheckTypeProperties(type);
         CheckForCircularReference(type);
 
-        TableAttribute tableAttribute = AttributeHelper.GetTypeAttribute<TableAttribute>(type);
         StringBuilder commandText = new("INSERT");
 
         if (replaceOnConflict)

@@ -1,8 +1,7 @@
-﻿using HelperExtensions;
-using SQLiteCommands.Attributes.Field;
+﻿using SQLiteCommands.Attributes.Field;
+using SQLiteCommands.Attributes.Table;
 using SQLiteCommands.Exceptions;
 using System.Reflection;
-using SQLiteCommands.Attributes.Table;
 
 namespace SQLiteCommands.Helpers;
 
@@ -47,40 +46,6 @@ internal static class AttributeHelper
     }
     #endregion
 
-    #region CheckTypeProperties
-    /// <summary>
-    /// Validates the specified type's attribute combination.
-    /// </summary>
-    /// <param name="type"></param>
-    /// <exception cref="InvalidTypeException"></exception>
-    /// <exception cref="InvalidAttributeCombinationException"></exception>
-    public static void CheckTypeProperties(Type type)
-    {
-        int tableAttributeCount = 0;
-        int selectAttributeCount = 0;
-
-        Attribute.GetCustomAttributes(type).ForEach(attr =>
-        {
-            switch (attr)
-            {
-                case TableAttribute:
-                    tableAttributeCount++;
-                    break;
-
-                case SelectOptionsAttribute:
-                    selectAttributeCount++;
-                    break;
-            }
-        });
-
-        if (tableAttributeCount == 0)
-            throw new InvalidTypeException($"The {nameof(TableAttribute)} attribute is mandatory for SQLite commands.");
-
-        if (tableAttributeCount > 1 || selectAttributeCount > 1)
-            throw new InvalidAttributeCombinationException("Invalid type's attribute combination.");
-    }
-    #endregion
-
     #region GetPropertyAttribute
     /// <summary>
     /// Retrieves the property's attribute of the specified type, if any.
@@ -90,6 +55,18 @@ internal static class AttributeHelper
     /// <returns></returns>
     public static T GetPropertyAttribute<T>(PropertyInfo propInfo) where T : Attribute =>
         propInfo.GetCustomAttribute(typeof(T)) as T;
+    #endregion
+
+    #region GetTableAttribute
+    /// <summary>
+    /// Returns the table attribute for the specified type.
+    /// </summary>
+    /// <param name="type"></param>
+    /// <returns></returns>
+    /// <exception cref="InvalidTypeException">The specified type does not contain the <see cref="TableAttribute"/> attribute.</exception>
+    public static TableAttribute GetTableAttribute(Type type) =>
+        GetTypeAttribute<TableAttribute>(type) ??
+        throw new InvalidTypeException($"The {nameof(TableAttribute)} attribute is mandatory for SQLite commands.");
     #endregion
 
     #region GetTypeAttribute
