@@ -24,7 +24,7 @@ internal class ManyToManyDataAttributeTest
     public void ManyToManyDataAttribute_Constructor_ShouldThrowException_WhenTheNameParameterIsNull()
     {
         // Act & Assert
-        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new ManyToManyDataAttribute(null));
+        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new ManyToManyDataAttribute(null!));
         Assert.AreEqual("The junction table name must be filled. (Parameter 'junctionTable')", exception.Message);
     }
 

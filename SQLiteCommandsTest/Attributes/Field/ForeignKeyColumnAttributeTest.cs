@@ -21,7 +21,7 @@ internal class ForeignKeyColumnAttributeTest
     [Test]
     public void ForeignKeyColumnAttribute_Constructor_ShouldThrowException_WhenTheNameParameterIsNull()
     {
-        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new ForeignKeyColumnAttribute(null));
+        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new ForeignKeyColumnAttribute(null!));
         Assert.AreEqual("The column's name must be filled. (Parameter 'name')", exception.Message);
     }
 

@@ -1,6 +1,6 @@
 ﻿using SQLiteCommands.Attributes.Field;
 
-namespace SQLiteCommandsTest.Mock;
+namespace SQLiteCommandsTest.Mock.Classes;
 
 internal class PropertyAttributesClass
 {

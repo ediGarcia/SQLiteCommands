@@ -1,12 +1,11 @@
-﻿using System.Data.SQLite;
-using System.Runtime.InteropServices.ComTypes;
-using System.Text;
-using HelperExtensions;
+﻿using HelperExtensions;
 using SQLiteCommands.Attributes.Field;
 using SQLiteCommands.Attributes.Table;
 using SQLiteCommands.Enums;
 using SQLiteCommands.Exceptions;
 using SQLiteCommands.Helpers;
+using System.Data.SQLite;
+using System.Text;
 
 namespace SQLiteCommands.Services;
 
@@ -210,13 +209,22 @@ internal static class CommandGeneratorService
     }
     #endregion
 
+    #region GenerateUpdateCommand
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="data"></param>
+    /// <returns></returns>
+    /// <exception cref="InvalidTypeException"></exception>
     public static SQLiteCommand GenerateUpdateCommand<T>(T data)
     {
         SQLiteCommand command = new();
         Type type = typeof(T);
         TableAttribute table = AttributeHelper.GetTableAttribute(type);
         StringBuilder commandText = new($"UPDATE OR ROLLBACK {table.Name} SET");
-        StringBuilder filter = new("WHERE 1 = 1");
+        StringBuilder filter = new(" WHERE 1 = 1");
+        int columnCount = 0;
 
         type.GetProperties().ForEach(propInfo =>
         {
@@ -234,38 +242,57 @@ internal static class CommandGeneratorService
                     AddFilterData(filter, command.Parameters, field.Name, propValue);
                 else
                 {
-                    string paramName = GenerateParamName(field.Name, propValue, command.Parameters);
+                    string paramName = GenerateParamName(field.Name, command.Parameters);
                     commandText.Append(" ", field.Name, " = ", paramName, ",");
                     command.Parameters.AddWithValue(paramName, propValue);
                 }
+
+                columnCount++;
             }
         });
+
+        // No valid columns found.
+        if (columnCount == 0)
+            throw new InvalidTypeException(
+                $"No eligible {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.");
+
+        commandText.Length -= 1; // Removes the trailing comma.
+        commandText.Append(filter);
 
         command.CommandText = commandText.ToString();
         return command;
 
-        string GenerateParamName(string columnName, object value, SQLiteParameterCollection parameters)
+        #region Local Methods
+
+        #region GenerateParamName
+        // Generates a new unique parameter name based on the specified column name.
+        string GenerateParamName(string columnName, SQLiteParameterCollection parameters)
         {
-            string originalParamName = $@"{columnName}";
+            string originalParamName = $"@{columnName}";
             string paramName = originalParamName;
             List<string> paramNames = new(from SQLiteParameter parameter in parameters select parameter.ParameterName);
             int index = 0;
 
             while (paramNames.Contains(paramName))
-                paramName = originalParamName + ++index;
+                paramName = $"{originalParamName}_{++index}";
 
             return paramName;
         }
+        #endregion
+
+        #endregion
     }
+    #endregion
 
     #region Private Methods
 
     #region AddFilterData
+
     /// <summary>
     /// Adds the property's data to the specified command text.
     /// </summary>
     /// <param name="parameters"></param>
-    /// <param name="propName"></param>
+    /// <param name="columnName"></param>
     /// <param name="propValue"></param>
     /// <param name="commandText"></param>
     private static void AddFilterData(StringBuilder commandText, SQLiteParameterCollection parameters, string columnName, object propValue)

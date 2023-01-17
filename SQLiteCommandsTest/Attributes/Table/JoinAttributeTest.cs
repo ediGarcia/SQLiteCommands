@@ -25,18 +25,18 @@ internal class JoinAttributeTest
     [Test]
     public void JoinAttribute_Constructor_ShouldThrowException_WhenTheTableParameterIsNull()
     {
-        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new JoinAttribute(null, "alias", "constraint"));
+        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new JoinAttribute(null!, "alias", "constraint"));
         Assert.AreEqual("The table name must be filled. (Parameter 'table')", exception.Message);
     }
 
     [Test]
     public void JoinAttribute_Constructor_ShouldNotThrowException_WhenTheAliasParameterIsNull() =>
-        Assert.DoesNotThrow(() => new JoinAttribute("table", null, "constraint"));
+        Assert.DoesNotThrow(() => new JoinAttribute("table", null!, "constraint"));
 
     [Test]
     public void JoinAttribute_Constructor_ShouldThrowException_WhenTheConstraintParameterIsNull()
     {
-        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new JoinAttribute("table", "alias", null));
+        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new JoinAttribute("table", "alias", null!));
         Assert.AreEqual("The JOIN clause constraint must be filled. (Parameter 'constraint')", exception.Message);
     }
 

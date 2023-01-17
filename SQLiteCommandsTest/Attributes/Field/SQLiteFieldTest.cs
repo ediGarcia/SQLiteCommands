@@ -22,7 +22,7 @@ internal class SQLiteFieldTest
     [Test]
     public void SQLiteField_Constructor_ShouldThrowException_WhenTheNameParameterIsNull()
     {
-        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new SQLiteField(null));
+        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new SQLiteField(null!));
         Assert.AreEqual("The column's name must be filled. (Parameter 'name')", exception.Message);
     }
 
@@ -30,33 +30,30 @@ internal class SQLiteFieldTest
 
     #region Properties
 
-    [Test]
-    public void SQLiteField_Setters_ShouldSetTheProperties()
+    [TestCase(true, false, true, false, true)]
+    [TestCase(false, true, false, true, false)]
+    public void SQLiteField_Setters_ShouldSetTheProperties(bool ignoreOnDelete, bool ignoreOnInsert,
+        bool ignoreOnSelect, bool ignoreOnUpdate, bool isPrimaryKey)
     {
-        const bool ignoreOnDeleteMock = true;
-        const bool ignoreOnInsertMock = true;
-        const bool ignoreOnSelectMock = true;
-        const bool ignoreOnUpdateMock = true;
-        const bool isPrimaryKeyMock = true;
         const string tableAliasMock = "tableAlias";
 
     // Act
     SQLiteField field = new("fieldName")
         {
-            IgnoreOnDelete = ignoreOnDeleteMock,
-            IgnoreOnInsert = ignoreOnInsertMock,
-            IgnoreOnSelect = ignoreOnSelectMock,
-            IgnoreOnUpdate = ignoreOnUpdateMock,
-            IsPrimaryKey = isPrimaryKeyMock,
+            IgnoreOnDelete = ignoreOnDelete,
+            IgnoreOnInsert = ignoreOnInsert,
+            IgnoreOnSelect = ignoreOnSelect,
+            IgnoreOnUpdate = ignoreOnUpdate,
+            IsPrimaryKey = isPrimaryKey,
             TableAlias = tableAliasMock
         };
 
         // Assert
-        Assert.AreEqual(ignoreOnDeleteMock, field.IgnoreOnDelete);
-        Assert.AreEqual(ignoreOnInsertMock, field.IgnoreOnInsert);
-        Assert.AreEqual(ignoreOnSelectMock, field.IgnoreOnSelect);
-        Assert.AreEqual(ignoreOnUpdateMock, field.IgnoreOnUpdate);
-        Assert.AreEqual(isPrimaryKeyMock, field.IsPrimaryKey);
+        Assert.AreEqual(ignoreOnDelete, field.IgnoreOnDelete);
+        Assert.AreEqual(ignoreOnInsert, field.IgnoreOnInsert);
+        Assert.AreEqual(ignoreOnSelect, field.IgnoreOnSelect);
+        Assert.AreEqual(ignoreOnUpdate, field.IgnoreOnUpdate);
+        Assert.AreEqual(isPrimaryKey, field.IsPrimaryKey);
         Assert.AreEqual(tableAliasMock, field.TableAlias);
     }
 

@@ -5,7 +5,6 @@ using System.Reflection;
 using NUnit.Framework;
 using SQLiteCommands.Attributes.Field;
 using SQLiteCommands.Attributes.Table;
-using SQLiteCommandsTest.Mock;
 
 namespace SQLiteCommandsTest.Helpers;
 
@@ -27,8 +26,8 @@ internal class AttributeHelperTest
         const string fieldName = "fieldName";
 
         // Act & Assert
-        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => AttributeHelper.CheckNullProperty(null, propName, fieldName));
-        Assert.AreEqual($"The {fieldName} be must be filled. (Parameter '{propName}')", exception.Message);
+        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => AttributeHelper.CheckNullProperty(null!, propName, fieldName));
+        Assert.AreEqual($"The {fieldName} must be filled. (Parameter '{propName}')", exception.Message);
     }
 
     #endregion

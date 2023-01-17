@@ -16,19 +16,27 @@ internal class CommandGeneratorServiceTest
 
     [Test]
     public void
-        CommandGeneratorService_GenerateDeleteCommand_ShouldThrowException_WhenTheClassPropertiesHaveNoValidAttributes() =>
+        CommandGeneratorService_GenerateDeleteCommand_ShouldThrowException_WhenTheClassPropertiesHaveNoValidAttributes()
+    {
         // Act & Assert
-        Assert.Throws<InvalidTypeException>(
-            () => CommandGeneratorService.GenerateDeleteCommand(new TableWithoutColumnsClass()),
-            $"No {nameof(ColumnAttribute)}, {nameof(CustomColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.");
+        InvalidTypeException exception = Assert.Throws<InvalidTypeException>(
+            () => CommandGeneratorService.GenerateDeleteCommand(new TableWithoutColumnsClass()));
+        Assert.AreEqual(
+            $"No eligible {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.",
+            exception.Message);
+    }
 
     [Test]
     public void
-        CommandGeneratorService_GenerateDeleteCommand_ShouldThrowException_WhenTheClassPropertiesHaveNoValue() =>
+        CommandGeneratorService_GenerateDeleteCommand_ShouldThrowException_WhenTheClassPropertiesHaveNoValue()
+    {
         // Act & Assert
-        Assert.Throws<InvalidTypeException>(
-            () => CommandGeneratorService.GenerateDeleteCommand(new TableClass()),
-            $"No {nameof(ColumnAttribute)}, {nameof(CustomColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.");
+        InvalidTypeException exception = Assert.Throws<InvalidTypeException>(
+            () => CommandGeneratorService.GenerateDeleteCommand(new TableClass()));
+        Assert.AreEqual(
+            $"No eligible {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.",
+            exception.Message);
+    }
 
     [Test]
     public void
@@ -43,14 +51,14 @@ internal class CommandGeneratorServiceTest
             ForeignKey = new()
             {
                 Id = 8000
-        },
+            },
             ForeignKeyIgnore = new()
             {
                 Id = 9000
             },
-NonPrimaryForeignKey = new()
+            NonPrimaryForeignKey = new()
             {
-Id = 1000
+                Id = 1000
             }
         };
 
@@ -73,10 +81,13 @@ Id = 1000
 
     [Test]
     public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldThrowException_WhenTheClassHasNoPropertyWithAttributes() =>
-        Assert.Throws<InvalidTypeException>(
-            () => CommandGeneratorService.GenerateSelectCommand(new TableWithoutColumnsClass()),
-            $"No {nameof(ColumnAttribute)}, {nameof(CustomColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.");
+        CommandGeneratorService_GenerateSelectCommand_ShouldThrowException_WhenTheClassHasNoPropertyWithAttributes()
+    {
+        // Act & Assert
+        InvalidTypeException exception = Assert.Throws<InvalidTypeException>(() =>
+            CommandGeneratorService.GenerateSelectCommand(new TableWithoutColumnsClass()));
+        Assert.AreEqual($"No eligible {nameof(ColumnAttribute)}, {nameof(CustomColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.", exception.Message);
+    }
 
     [Test]
     public void
@@ -341,6 +352,68 @@ Id = 1000
         Assert.IsNotNull(result);
         Assert.AreEqual(
             "SELECT TST.TST_INT_ID AS Id, ALI.TST_INT_COLUMNALIAS AS ColumnWithAlias, TST.TST_FOR_INT_ID AS ForeignKey, FOR.TST_FOR_INT_ID2 AS ForeignKey2, TST.TST_INT_SORTING AS SortingColumn, SOR.TST_INT_SORTING2 AS SortingColumn2, TST.TST_INT_GROUPCOLUMN AS GroupingColumn, GRP.TST_INT_GROUPCOLUMN2 AS GroupingColumn2 FROM TAB_TST_TEST AS TST WHERE 1 = 1 GROUP BY GroupingColumn, GroupingColumn2 ORDER BY SortingColumn ASC NULLS FIRST, SortingColumn2 ASC NULLS FIRST",
+            result.CommandText);
+    }
+
+    #endregion
+
+    #region GenerateUpdateCommand
+
+    [Test]
+    public void
+        CommandGeneratorService_GenerateUpdateCommand_ShouldThrowException_WhenTheClassPropertiesHaveNoValidAttributes()
+    {
+        // Act & Assert
+InvalidTypeException exception = Assert.Throws<InvalidTypeException>(
+            () => CommandGeneratorService.GenerateUpdateCommand(new TableWithoutColumnsClass()));
+Assert.AreEqual(
+    $"No eligible {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.",
+    exception.Message);
+    }
+
+    [Test]
+    public void
+        CommandGeneratorService_GenerateUpdateCommand_ShouldThrowException_WhenTheClassPropertiesHaveNoValue()
+    {
+        // Act & Assert
+        InvalidTypeException exception = Assert.Throws<InvalidTypeException>(
+            () => CommandGeneratorService.GenerateUpdateCommand(new TableClass()));
+        Assert.AreEqual(
+            $"No eligible {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.",
+            exception.Message);
+    }
+
+    [Test]
+    public void CommandGeneratorService_GenerateAUpdateCommand_ShouldGenerateAnUpdateCommand()
+    {
+        // Arrange
+        UpdateTableClass tableClass = new()
+        {
+            Id = 1,
+            IdIgnore = 2,
+            StringProperty = "data1",
+            StringPropertyIgnore = "ignoredData",
+            StringProperty2 = "data2",
+            ForeignKeyColumn = new() { Id = 3 },
+            ForeignKeyColumnIgnore = new() { Id = 4 }
+        };
+
+        // Act
+        SQLiteCommand result = CommandGeneratorService.GenerateUpdateCommand(tableClass);
+
+        // Assert
+        Assert.IsNotNull(result?.Parameters);
+        Assert.AreEqual(4, result.Parameters.Count);
+        Assert.AreEqual("@TST_INT_ID", result.Parameters[0].ParameterName);
+        Assert.AreEqual(tableClass.Id, result.Parameters[0].Value);
+        Assert.AreEqual("@TST_STR_PROP", result.Parameters[1].ParameterName);
+        Assert.AreEqual(tableClass.StringProperty, result.Parameters[1].Value);
+        Assert.AreEqual("@TST_STR_PROP_1", result.Parameters[2].ParameterName);
+        Assert.AreEqual(tableClass.StringProperty2, result.Parameters[2].Value);
+        Assert.AreEqual("@TST_FOR_INT_ID", result.Parameters[3].ParameterName);
+        Assert.AreEqual(tableClass.ForeignKeyColumn.Id, result.Parameters[3].Value);
+        Assert.AreEqual(
+            "UPDATE OR ROLLBACK TAB_TST_TEST SET TST_STR_PROP = @TST_STR_PROP, TST_STR_PROP = @TST_STR_PROP_1, TST_FOR_INT_ID = @TST_FOR_INT_ID WHERE 1 = 1 AND TST_INT_ID = @TST_INT_ID",
             result.CommandText);
     }
 
