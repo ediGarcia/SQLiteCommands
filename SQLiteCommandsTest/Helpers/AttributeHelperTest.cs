@@ -2,6 +2,7 @@
 using SQLiteCommands.Helpers;
 using SQLiteCommandsTest.Mock.Classes;
 using System.Reflection;
+using NUnit.Framework;
 using SQLiteCommands.Attributes.Field;
 using SQLiteCommands.Attributes.Table;
 using SQLiteCommandsTest.Mock;

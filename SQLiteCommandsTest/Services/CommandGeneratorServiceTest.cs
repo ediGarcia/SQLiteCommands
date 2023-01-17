@@ -1,4 +1,5 @@
 ﻿using System.Data.SQLite;
+using NUnit.Framework;
 using SQLiteCommands.Attributes.Field;
 using SQLiteCommands.Exceptions;
 using SQLiteCommands.Services;
@@ -9,20 +10,77 @@ using SQLiteCommandsTest.Mock.Classes;
 namespace SQLiteCommandsTest.Services;
 
 [TestFixture]
-internal class CommandGeneratorTest
+internal class CommandGeneratorServiceTest
 {
+    #region GenerateDeleteCommand
+
+    [Test]
+    public void
+        CommandGeneratorService_GenerateDeleteCommand_ShouldThrowException_WhenTheClassPropertiesHaveNoValidAttributes() =>
+        // Act & Assert
+        Assert.Throws<InvalidTypeException>(
+            () => CommandGeneratorService.GenerateDeleteCommand(new TableWithoutColumnsClass()),
+            $"No {nameof(ColumnAttribute)}, {nameof(CustomColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.");
+
+    [Test]
+    public void
+        CommandGeneratorService_GenerateDeleteCommand_ShouldThrowException_WhenTheClassPropertiesHaveNoValue() =>
+        // Act & Assert
+        Assert.Throws<InvalidTypeException>(
+            () => CommandGeneratorService.GenerateDeleteCommand(new TableClass()),
+            $"No {nameof(ColumnAttribute)}, {nameof(CustomColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.");
+
+    [Test]
+    public void
+        CommandGeneratorService_GenerateDeleteCommand_ShouldGenerateADeleteCommand_WhenTheClassPropertiesHaveValues()
+    {
+        // Arrange
+        TableColumnForeignKey table = new()
+        {
+            Id = 5000,
+            IdIgnore = 6000,
+            NoPrimaryId = 7000,
+            ForeignKey = new()
+            {
+                Id = 8000
+        },
+            ForeignKeyIgnore = new()
+            {
+                Id = 9000
+            },
+NonPrimaryForeignKey = new()
+            {
+Id = 1000
+            }
+        };
+
+        // Act
+        SQLiteCommand result = CommandGeneratorService.GenerateDeleteCommand(table);
+
+        // Assert
+        Assert.IsNotNull(result);
+        Assert.AreEqual(2, result.Parameters.Count);
+        Assert.AreEqual("@CFK_INT_ID", result.Parameters[0].ParameterName);
+        Assert.AreEqual(table.Id, result.Parameters[0].Value);
+        Assert.AreEqual("@CFK_FOR_INT_ID", result.Parameters[1].ParameterName);
+        Assert.AreEqual(table.ForeignKey.Id, result.Parameters[1].Value);
+        Assert.AreEqual("DELETE FROM TAB_CFK_COLUMNFOREIGNKEY WHERE 1 = 1 AND CFK_INT_ID = @CFK_INT_ID AND CFK_FOR_INT_ID = @CFK_FOR_INT_ID", result.CommandText);
+    }
+
+    #endregion
+
     #region GenerateSelectCommand
 
     [Test]
     public void
-    SqliteCommandGenerator_GenerateSelectCommand_ShouldThrowException_WhenTheClassHasNoPropertyWithAttributes() =>
+        CommandGeneratorService_GenerateSelectCommand_ShouldThrowException_WhenTheClassHasNoPropertyWithAttributes() =>
         Assert.Throws<InvalidTypeException>(
             () => CommandGeneratorService.GenerateSelectCommand(new TableWithoutColumnsClass()),
             $"No {nameof(ColumnAttribute)}, {nameof(CustomColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.");
 
     [Test]
     public void
-        SqliteCommandGenerator_GenerateSelectCommand_ShouldGenerateASimpleSelectCommand_WhenClassHasNoSelectAttributeAndNoValues()
+        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateASimpleSelectCommand_WhenClassHasNoSelectAttributeAndNoValues()
     {
         // Act
         SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new TableClass());
@@ -36,7 +94,7 @@ internal class CommandGeneratorTest
 
     [Test]
     public void
-        SqliteCommandGenerator_GenerateSelectCommand_ShouldGenerateASelectCommand_WhenClassHasValues()
+        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateASelectCommand_WhenClassHasValues()
     {
         // Arrange
         const int idMock = 3;
@@ -71,7 +129,7 @@ internal class CommandGeneratorTest
 
     [TestCaseSource(nameof(SelectClassTestCases))]
     public void
-        SqliteCommandGenerator_GenerateSelectCommand_ShouldGenerateASelectCommand_WhenClassContainsTheSelectAttributeAndNoValues<
+        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateASelectCommand_WhenClassContainsTheSelectAttributeAndNoValues<
             T>(T selectClass, string expectedCommandText)
     {
         // Act
@@ -85,7 +143,7 @@ internal class CommandGeneratorTest
 
     [Test]
     public void
-        SqliteCommandGenerator_GenerateSelectCommand_ShouldGenerateASelectCommandWithFilter_WhenTheSelectAttributeFilterPropertyHasValue()
+        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateASelectCommandWithFilter_WhenTheSelectAttributeFilterPropertyHasValue()
     {
         // Act
         SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new SelectFilteredClass());
@@ -100,7 +158,7 @@ internal class CommandGeneratorTest
 
     [Test]
     public void
-        SqliteCommandGenerator_GenerateSelectCommand_ShouldGenerateASimpleSelectCommand_WhenTheClassPropertiesHasNoGroupingAttributesAndSelectAttributeHavingPropertyHasValue()
+        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateASimpleSelectCommand_WhenTheClassPropertiesHasNoGroupingAttributesAndSelectAttributeHavingPropertyHasValue()
     {
         // Act
         SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new SelectHavingClass());
@@ -114,7 +172,7 @@ internal class CommandGeneratorTest
 
     [Test]
     public void
-        SqliteCommandGenerator_GenerateSelectCommand_ShouldGenerateASelectCommandWithLimit_WhenTheSelectAttributeLimitPropertyHasValue()
+        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateASelectCommandWithLimit_WhenTheSelectAttributeLimitPropertyHasValue()
     {
         // Act
         SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new SelectLimitClass());
@@ -129,7 +187,7 @@ internal class CommandGeneratorTest
 
     [Test]
     public void
-        SqliteCommandGenerator_GenerateSelectCommand_ShouldGenerateASelectCommandWithLimitAndOffset_WhenTheSelectAttributeLimitAndOffsetPropertiesHaveValue()
+        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateASelectCommandWithLimitAndOffset_WhenTheSelectAttributeLimitAndOffsetPropertiesHaveValue()
     {
         // Act
         SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new SelectLimitOffsetClass());
@@ -143,7 +201,7 @@ internal class CommandGeneratorTest
 
     [Test]
     public void
-        SqliteCommandGenerator_GenerateSelectCommand_ShouldGenerateASimpleSelectCommand_WhenTheSelectAttributeLimitPropertyHasNoValueAndTheOffsetPropertyHasValue()
+        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateASimpleSelectCommand_WhenTheSelectAttributeLimitPropertyHasNoValueAndTheOffsetPropertyHasValue()
     {
         // Act
         SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new SelectOffsetClass());
@@ -157,7 +215,7 @@ internal class CommandGeneratorTest
 
     [Test]
     public void
-        SqliteCommandGenerator_GenerateSelectCommand_ShouldCreateASelectCommandWithTheForeignKeyValue_WhenTheClassContainsForeignKeys()
+        CommandGeneratorService_GenerateSelectCommand_ShouldCreateASelectCommandWithTheForeignKeyValue_WhenTheClassContainsForeignKeys()
     {
         // Arrange
         const int primaryKeyColumnValueMock = 1;
@@ -192,7 +250,7 @@ internal class CommandGeneratorTest
 
     [Test]
     public void
-        SqliteCommandGenerator_GenerateSelectCommand_ShouldCreateASelectCommandWithTheOrderByClause_WhenTheClassContainsFieldsWithNoValueAndTheSortingFieldAttribute()
+        CommandGeneratorService_GenerateSelectCommand_ShouldCreateASelectCommandWithTheOrderByClause_WhenTheClassContainsFieldsWithNoValueAndTheSortingFieldAttribute()
     {
         // Act
         SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new TableSortedFieldsClass());
@@ -206,7 +264,7 @@ internal class CommandGeneratorTest
 
     [Test]
     public void
-        SqliteCommandGenerator_GenerateSelectCommand_ShouldCreateASelectCommandWithTheOrderByClause_WhenTheClassContainsFieldsWithValueAndTheSortingFieldAttribute()
+        CommandGeneratorService_GenerateSelectCommand_ShouldCreateASelectCommandWithTheOrderByClause_WhenTheClassContainsFieldsWithValueAndTheSortingFieldAttribute()
     {
         // Arrange
         const int idValueMock = 1;
@@ -232,7 +290,7 @@ internal class CommandGeneratorTest
 
     [Test]
     public void
-        SqliteCommandGenerator_GenerateSelectCommand_ShouldCreateASelectCommandWithTheGroupByStatement_WhenTheClassContainsPropertiesWithTheGroupingAttribute()
+        CommandGeneratorService_GenerateSelectCommand_ShouldCreateASelectCommandWithTheGroupByStatement_WhenTheClassContainsPropertiesWithTheGroupingAttribute()
     {
         // Act
         SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new TableGroupingClass());
@@ -246,7 +304,7 @@ internal class CommandGeneratorTest
 
     [Test]
     public void
-        SqliteCommandGenerator_GenerateSelectCommand_ShouldCreateASelectCommandWithTheGroupByStatement_WhenTheClassContainsHavingDataAndPropertiesWithTheGroupingAttribute()
+        CommandGeneratorService_GenerateSelectCommand_ShouldCreateASelectCommandWithTheGroupByStatement_WhenTheClassContainsHavingDataAndPropertiesWithTheGroupingAttribute()
     {
         // Act
         SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new SelectGroupingHavingClass());
@@ -260,7 +318,7 @@ internal class CommandGeneratorTest
 
     [Test]
     public void
-        SqliteCommandGenerator_GenerateSelectCommand_ShouldGenerateJoinClauses_WhenTheClassHasTheJoinAttribute()
+        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateJoinClauses_WhenTheClassHasTheJoinAttribute()
     {
         // Act
         SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new TableJoinClass());
@@ -274,7 +332,7 @@ internal class CommandGeneratorTest
 
     [Test]
     public void
-    SqliteCommandGenerator_GenerateSelectCommand_ShouldUseTheCorrectAliasForEachColumn_WhenTheTableAliasAreDefined()
+        CommandGeneratorService_GenerateSelectCommand_ShouldUseTheCorrectAliasForEachColumn_WhenTheTableAliasAreDefined()
     {
         // Act
         SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new TableAliasClass());

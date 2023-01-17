@@ -1,5 +1,4 @@
-﻿#pragma warning disable CS8618
-namespace SQLiteCommands.Attributes.Field;
+﻿namespace SQLiteCommands.Attributes.Field;
 
 /// <summary>
 /// Conditions for grouping related data returned from the database.

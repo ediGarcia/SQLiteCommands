@@ -1,5 +1,4 @@
 ﻿using SQLiteCommands.Helpers;
-#pragma warning disable CS8618
 
 namespace SQLiteCommands.Attributes.Field;
 

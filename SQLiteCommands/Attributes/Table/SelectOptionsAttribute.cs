@@ -37,4 +37,5 @@ public class SelectOptionsAttribute : Attribute
 
     public SelectOptionsAttribute(bool removeDuplicates) =>
         RemoveDuplicates = removeDuplicates;
+
 }

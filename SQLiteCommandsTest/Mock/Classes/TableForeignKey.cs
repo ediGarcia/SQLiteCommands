@@ -4,6 +4,28 @@ using SQLiteCommands.Attributes.Table;
 
 namespace SQLiteCommandsTest.Mock.Classes;
 
+[Table("TAB_CFK_COLUMNFOREIGNKEY")]
+internal class TableColumnForeignKey
+{
+    [Column("CFK_INT_ID", IsPrimaryKey = true)]
+    public int? Id { get; set; }
+
+    [Column("CKF_INT_NOPRIMARYID")]
+    public int? NoPrimaryId { get; set; }
+
+    [Column("CFK_INT_IDIGNORE", IsPrimaryKey = true, IgnoreOnDelete = true)]
+    public int? IdIgnore { get; set; }
+
+    [ForeignKeyColumn("CFK_FOR_INT_ID", IsPrimaryKey = true)]
+    public TableForeignKeyTargetClass ForeignKey { get; set; }
+
+    [ForeignKeyColumn("CFK_FOR_INT_IDIGNORE", IsPrimaryKey = true, IgnoreOnDelete = true)]
+    public TableForeignKeyTargetClass ForeignKeyIgnore { get; set; }
+
+    [ForeignKeyColumn("CFK_FOR_INT_NONPRIMARY")]
+    public TableForeignKeyTargetClass NonPrimaryForeignKey { get; set; }
+}
+
 [Table("TAB_TST_TEST")]
 internal class TableForeignKey
 {

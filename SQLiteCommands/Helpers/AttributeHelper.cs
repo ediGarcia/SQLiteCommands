@@ -24,7 +24,7 @@ internal static class AttributeHelper
     public static void CheckNullProperty(string value, string propertyName, string fieldName)
     {
         if (String.IsNullOrWhiteSpace(value))
-            throw new ArgumentNullException(propertyName, $"The {fieldName} be must be filled.");
+            throw new ArgumentNullException(propertyName, $"The {fieldName} must be filled.");
     }
     #endregion
 

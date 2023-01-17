@@ -35,8 +35,8 @@ public class JoinAttribute : Attribute
 
     public JoinAttribute(string table, string alias, string constraint)
     {
-        AttributeHelper.CheckNullProperty(table, nameof(table), "The table name");
-        AttributeHelper.CheckNullProperty(constraint, nameof(constraint), "The JOIN clause constraint");
+        AttributeHelper.CheckNullProperty(table, nameof(table), "table name");
+        AttributeHelper.CheckNullProperty(constraint, nameof(constraint), "JOIN clause constraint");
 
         Table = table;
         Alias = alias;
