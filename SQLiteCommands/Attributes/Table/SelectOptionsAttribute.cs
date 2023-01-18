@@ -31,11 +31,7 @@ public class SelectOptionsAttribute : Attribute
     /// <summary>
     /// Indicates whether only distinct instances will be returned from the database (based on the UNIQUE fields).
     /// </summary>
-    public bool RemoveDuplicates { get; }
+    public bool RemoveDuplicates { get; set; }
 
     #endregion
-
-    public SelectOptionsAttribute(bool removeDuplicates) =>
-        RemoveDuplicates = removeDuplicates;
-
 }

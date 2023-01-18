@@ -22,7 +22,7 @@ internal class CommandGeneratorServiceTest
         InvalidTypeException exception = Assert.Throws<InvalidTypeException>(
             () => CommandGeneratorService.GenerateDeleteCommand(new TableWithoutColumnsClass()));
         Assert.AreEqual(
-            $"No eligible {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.",
+            $"No eligible primary key {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.",
             exception.Message);
     }
 
@@ -34,7 +34,7 @@ internal class CommandGeneratorServiceTest
         InvalidTypeException exception = Assert.Throws<InvalidTypeException>(
             () => CommandGeneratorService.GenerateDeleteCommand(new TableClass()));
         Assert.AreEqual(
-            $"No eligible {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.",
+            $"No eligible primary key {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.",
             exception.Message);
     }
 
@@ -73,6 +73,53 @@ internal class CommandGeneratorServiceTest
         Assert.AreEqual("@CFK_FOR_INT_ID", result.Parameters[1].ParameterName);
         Assert.AreEqual(table.ForeignKey.Id, result.Parameters[1].Value);
         Assert.AreEqual("DELETE FROM TAB_CFK_COLUMNFOREIGNKEY WHERE 1 = 1 AND CFK_INT_ID = @CFK_INT_ID AND CFK_FOR_INT_ID = @CFK_FOR_INT_ID", result.CommandText);
+    }
+
+    #endregion
+
+    #region GenerateInsertCommand
+
+    [Test]
+    public void
+        CommandGeneratorService_GenerateInsertCommand_ShouldThrowException_WhenTheClassPropertiesHaveNoValidAttributes()
+    {
+        // Act & Assert
+        InvalidTypeException exception = Assert.Throws<InvalidTypeException>(
+            () => CommandGeneratorService.GenerateInsertCommand(new TableWithoutColumnsClass()));
+        Assert.AreEqual(
+            $"No eligible {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.",
+            exception.Message);
+    }
+
+    [Test]
+    public void
+        CommandGeneratorService_GenerateInsertCommand_ShouldThrowException_WhenTheClassPropertiesHaveNoValue()
+    {
+        // Act & Assert
+        InvalidTypeException exception = Assert.Throws<InvalidTypeException>(
+            () => CommandGeneratorService.GenerateInsertCommand(new TableClass()));
+        Assert.AreEqual(
+            $"No eligible {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.",
+            exception.Message);
+    }
+
+    [TestCaseSource(nameof(InsertClassTestCases))]
+    public void
+        CommandGeneratorService_GenerateInsertCommand_ShouldGenerateAInsertCommand_WhenTheClassPropertiesHaveValues<T>(T data, string expectedCommandText) where T : InsertClasses
+    {
+        // Act
+        SQLiteCommand result = CommandGeneratorService.GenerateInsertCommand(data);
+
+        // Assert
+        Assert.IsNotNull(result);
+        Assert.AreEqual(3, result.Parameters.Count);
+        Assert.AreEqual("@Id", result.Parameters[0].ParameterName);
+        Assert.AreEqual(data.Id, result.Parameters[0].Value);
+        Assert.AreEqual("@ForeignKey", result.Parameters[1].ParameterName);
+        Assert.AreEqual(data.ForeignKey.Id, result.Parameters[1].Value);
+        Assert.AreEqual("@ForeignKey2", result.Parameters[2].ParameterName);
+        Assert.AreEqual(data.ForeignKey2.StringProperty, result.Parameters[2].Value);
+        Assert.AreEqual(expectedCommandText, result.CommandText);
     }
 
     #endregion
@@ -432,6 +479,42 @@ Assert.AreEqual(
             "SELECT TST_INT_ID AS Id, TST_REA_DOUBLEVALUE AS DoubleValue, TST_TXT_STRINGVALUE AS StringValue FROM TAB_TST_TEST WHERE 1 = 1");
         yield return new TestCaseData(new SelectDistinctClass(),
             "SELECT DISTINCT TST_INT_ID AS Id, TST_REA_DOUBLEVALUE AS DoubleValue, TST_TXT_STRINGVALUE AS StringValue FROM TAB_TST_TEST WHERE 1 = 1");
+    }
+    #endregion
+
+    #region InsertClassTestCases
+    /// <summary>
+    /// Generates test cases for the INSERT command generation.
+    /// </summary>
+    /// <returns></returns>
+    public static IEnumerable<TestCaseData> InsertClassTestCases()
+    {
+        yield return new(new InsertClassWithoutAttribute
+        {
+            Id = 1,
+            IdIgnore = 2,
+            ForeignKey = new() { Id = 3 },
+            ForeignKey2 = new() { StringProperty = "PropValue" },
+            ForeignKeyIgnore = new() { Id = 4 }
+        }, "INSERT OR ROLLBACK INTO TAB_TST_TEST (TST_INT_ID,FOR_TST_INT_ID,FOR_TST_CHR_STRING) VALUES (@Id,@ForeignKey,@ForeignKey2)");
+
+        yield return new(new InsertClass
+        {
+            Id = 1,
+            IdIgnore = 2,
+            ForeignKey = new() { Id = 3 },
+            ForeignKey2 = new() { StringProperty = "PropValue" },
+            ForeignKeyIgnore = new() { Id = 4 }
+        }, "INSERT OR ROLLBACK INTO TAB_TST_TEST (TST_INT_ID,FOR_TST_INT_ID,FOR_TST_CHR_STRING) VALUES (@Id,@ForeignKey,@ForeignKey2)");
+
+        yield return new(new InsertOrReplaceClass
+        {
+            Id = 1,
+            IdIgnore = 2,
+            ForeignKey = new() { Id = 3 },
+            ForeignKey2 = new() { StringProperty = "PropValue" },
+            ForeignKeyIgnore = new() { Id = 4 }
+        }, "INSERT OR REPLACE INTO TAB_TST_TEST (TST_INT_ID,FOR_TST_INT_ID,FOR_TST_CHR_STRING) VALUES (@Id,@ForeignKey,@ForeignKey2)");
     }
     #endregion
 

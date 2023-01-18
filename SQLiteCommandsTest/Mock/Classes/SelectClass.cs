@@ -5,7 +5,7 @@ using SQLiteCommands.Attributes.Table;
 namespace SQLiteCommandsTest.Mock.Classes;
 
 [Table("TAB_TST_TEST")]
-[SelectOptions(false)]
+[SelectOptions]
 internal class SelectClass
 {
     [Column("TST_INT_ID")]

@@ -20,4 +20,8 @@
     <ProjectReference Include="..\SQLiteCommands\SQLiteCommands.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Mock\TemporaryFiles\" />
+  </ItemGroup>
+
 </Project>

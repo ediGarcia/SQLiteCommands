@@ -5,7 +5,7 @@ using SQLiteCommands.Attributes.Table;
 namespace SQLiteCommandsTest.Mock.Classes;
 
 [Table("TAB_TST_TEST")]
-[SelectOptions(false, Filter = "DoubleValue < 10")]
+[SelectOptions(Filter = "DoubleValue < 10")]
 internal class SelectFilteredClass
 {
     [Column("TST_INT_ID")]

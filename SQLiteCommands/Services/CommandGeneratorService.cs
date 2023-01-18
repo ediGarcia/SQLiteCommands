@@ -5,6 +5,7 @@ using SQLiteCommands.Enums;
 using SQLiteCommands.Exceptions;
 using SQLiteCommands.Helpers;
 using System.Data.SQLite;
+using System.Reflection;
 using System.Text;
 
 namespace SQLiteCommands.Services;
@@ -12,6 +13,8 @@ namespace SQLiteCommands.Services;
 // ReSharper disable once InconsistentNaming
 internal static class CommandGeneratorService
 {
+    #region Public Methods
+
     #region GenerateDeleteCommand
     /// <summary>
     /// Generates a DELETE command for the specified type.
@@ -31,18 +34,55 @@ internal static class CommandGeneratorService
         type.GetProperties().ForEach(propInfo =>
         {
             if (AttributeHelper.GetPropertyAttribute<SQLiteField>(propInfo) is
-                { IsPrimaryKey: true, IgnoreOnDelete: false } field)
+                { IsPrimaryKey: true, IgnoreOnDelete: false } field
+                && GetPropertyValue(data, propInfo, field) is { } propValue)
             {
-                object propValue = propInfo.GetValue(data);
+                AddFilterData(commandText, command.Parameters, field.Name, propValue);
+                columnCount++;
+            }
+        });
 
-                if (field is ForeignKeyColumnAttribute foreignKey)
-                    propValue = GetForeignKeyValue(propValue, foreignKey.TargetColumn);
+        // No valid columns found.
+        if (columnCount == 0)
+            throw new InvalidTypeException(
+                $"No eligible primary key {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.");
 
-                if (propValue is not null)
-                {
-                    AddFilterData(commandText, command.Parameters, field.Name, propValue);
-                    columnCount++;
-                }
+        command.CommandText = commandText.ToString();
+        return command;
+    }
+    #endregion
+
+    #region GenerateInsertCommand
+    /// <summary>
+    /// Generates a INSERT command for the specified type.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="data"></param>
+    /// <returns></returns>
+    /// <exception cref="InvalidTypeException"></exception>
+    public static SQLiteCommand GenerateInsertCommand<T>(T data)
+    {
+        Type type = typeof(T);
+        TableAttribute table = AttributeHelper.GetTableAttribute(type);
+        SQLiteCommand command = new();
+        InsertOptionsAttribute insertOptions = AttributeHelper.GetTypeAttribute<InsertOptionsAttribute>(type);
+        StringBuilder commandText =
+            new($"INSERT OR {(insertOptions?.ReplaceOnConflict == true ? "REPLACE" : "ROLLBACK")} INTO {table.Name} (");
+        StringBuilder valuesText = new("VALUES (");
+        int columnCount = 0;
+
+        type.GetProperties().ForEach(propInfo =>
+        {
+            if (AttributeHelper.GetPropertyAttribute<SQLiteField>(propInfo) is { IgnoreOnInsert: false } field &&
+                GetPropertyValue(data, propInfo, field) is { } propValue)
+            {
+                commandText.Append(field.Name, ",");
+
+                string paramName = $"@{propInfo.Name}";
+                valuesText.Append(paramName, ",");
+                command.Parameters.AddWithValue(paramName, propValue);
+
+                columnCount++;
             }
         });
 
@@ -50,6 +90,11 @@ internal static class CommandGeneratorService
         if (columnCount == 0)
             throw new InvalidTypeException(
                 $"No eligible {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.");
+
+        commandText.Length -= 1;
+        valuesText.Length -= 1;
+
+        commandText.Append(") ", valuesText, ")");
 
         command.CommandText = commandText.ToString();
         return command;
@@ -69,27 +114,24 @@ internal static class CommandGeneratorService
         SQLiteCommand command = new();
         Type type = typeof(T);
         TableAttribute table = AttributeHelper.GetTableAttribute(type);
-        SelectOptionsAttribute select = AttributeHelper.GetTypeAttribute<SelectOptionsAttribute>(type);
-        StringBuilder commandText = new("SELECT");
+        SelectOptionsAttribute selectOptions = AttributeHelper.GetTypeAttribute<SelectOptionsAttribute>(type);
+        StringBuilder commandText = new($"SELECT{(selectOptions?.RemoveDuplicates == true ? " DISTINCT" : "")}");
         List<(string propName, SortingFieldAttribute sortingField)> sortingFields = new();
         StringBuilder filterCommand = new();
         StringBuilder groupingCommand = new();
-
-        if (select?.RemoveDuplicates == true)
-            commandText.Append(" DISTINCT");
-
         int columnCount = 0;
+
         type.GetProperties().ForEach(propInfo =>
         {
             bool columnAdded = false;
             AttributeHelper.CheckPropertyAttributes(propInfo);
 
-            if (AttributeHelper.GetPropertyAttribute<ColumnAttribute>(propInfo) is { IgnoreOnSelect: false } column)
+            if (AttributeHelper.GetPropertyAttribute<SQLiteField>(propInfo) is { IgnoreOnSelect: false } field)
             {
-                AppendColumnCommand(column.TableAlias ?? table.Alias, column.Name, propInfo.Name);
+                AppendColumnCommand(field.TableAlias ?? table.Alias, field.Name, propInfo.Name);
 
-                if (propInfo.GetValue(data) is { } columnValue)
-                    AddFilterData(filterCommand, command.Parameters, propInfo.Name, columnValue);
+                if (GetPropertyValue(data, propInfo, field) is { } fieldValue)
+                    AddFilterData(filterCommand, command.Parameters, propInfo.Name, fieldValue);
 
                 columnAdded = true;
                 columnCount++;
@@ -98,17 +140,6 @@ internal static class CommandGeneratorService
             else if (AttributeHelper.GetPropertyAttribute<CustomColumnAttribute>(propInfo) is { } customColumn)
             {
                 commandText.Append(" (", customColumn.CustomData, ") AS ", propInfo.Name, ",");
-                columnAdded = true;
-                columnCount++;
-            }
-
-            else if (AttributeHelper.GetPropertyAttribute<ForeignKeyColumnAttribute>(propInfo) is { IgnoreOnSelect: false } foreignKeyColumn)
-            {
-                AppendColumnCommand(foreignKeyColumn.TableAlias ?? table.Alias, foreignKeyColumn.Name, propInfo.Name);
-
-                if (GetForeignKeyValue(propInfo.GetValue(data), foreignKeyColumn.TargetColumn) is { } foreignKeyValue)
-                    AddFilterData(filterCommand, command.Parameters, propInfo.Name, foreignKeyValue);
-
                 columnAdded = true;
                 columnCount++;
             }
@@ -160,7 +191,7 @@ internal static class CommandGeneratorService
             commandText.Append(" JOIN ", join.Table, " AS ", join.Alias).AppendIfNotNullOrWhiteSpace(join.Constraint, " ON ");
         });
 
-        commandText.Append(" WHERE 1 = 1", filterCommand).AppendIfNotNullOrWhiteSpace(select?.Filter, " AND (", ")"); // Filtering (WHERE).
+        commandText.Append(" WHERE 1 = 1", filterCommand).AppendIfNotNullOrWhiteSpace(selectOptions?.Filter, " AND (", ")"); // Filtering (WHERE).
 
         // Grouping (GROUP BY).
         if (groupingCommand.Length > 0)
@@ -169,8 +200,8 @@ internal static class CommandGeneratorService
             commandText.Append(" GROUP BY ", groupingCommand);
 
             // Filtering (HAVING).
-            if (!String.IsNullOrWhiteSpace(select?.Having))
-                commandText.Append(" HAVING ", select.Having);
+            if (!String.IsNullOrWhiteSpace(selectOptions?.Having))
+                commandText.Append(" HAVING ", selectOptions.Having);
         }
 
         // Sorting (ORDER BY).
@@ -185,12 +216,12 @@ internal static class CommandGeneratorService
         }
 
         // Limiting (LIMIT).
-        if (select?.Limit >= 0)
+        if (selectOptions?.Limit >= 0)
         {
-            commandText.Append(" LIMIT ", select.Limit);
+            commandText.Append(" LIMIT ", selectOptions.Limit);
 
-            if (select.Offset >= 0)
-                commandText.Append(" OFFSET ", select.Offset);
+            if (selectOptions.Offset >= 0)
+                commandText.Append(" OFFSET ", selectOptions.Offset);
         }
 
         command.CommandText = commandText.ToString();
@@ -228,16 +259,9 @@ internal static class CommandGeneratorService
 
         type.GetProperties().ForEach(propInfo =>
         {
-            if (AttributeHelper.GetPropertyAttribute<SQLiteField>(propInfo) is { IgnoreOnUpdate: false } field)
+            if (AttributeHelper.GetPropertyAttribute<SQLiteField>(propInfo) is { IgnoreOnUpdate: false } field &&
+                GetPropertyValue(data, propInfo, field) is { } propValue)
             {
-                object propValue = propInfo.GetValue(data);
-
-                if (field is ForeignKeyColumnAttribute foreignKey)
-                    propValue = GetForeignKeyValue(propValue, foreignKey.TargetColumn);
-
-                if (propValue is null)
-                    return;
-
                 if (field.IsPrimaryKey)
                     AddFilterData(filter, command.Parameters, field.Name, propValue);
                 else
@@ -284,6 +308,8 @@ internal static class CommandGeneratorService
     }
     #endregion
 
+    #endregion
+
     #region Private Methods
 
     #region AddFilterData
@@ -304,32 +330,38 @@ internal static class CommandGeneratorService
     }
     #endregion
 
-    #region GetForeignKeyValue
+    #region GetPropertyValue
     /// <summary>
-    /// Gets the specified foreign key value.
+    /// Retrieves the specified property's value.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    /// <param name="foreignKeyData"></param>
-    /// <param name="columnName"></param>
+    /// <param name="data"></param>
+    /// <param name="propInfo"></param>
+    /// <param name="propAttribute"></param>
     /// <returns></returns>
-    private static object GetForeignKeyValue<T>(T foreignKeyData, string columnName)
+    private static object GetPropertyValue<T>(T data, PropertyInfo propInfo, SQLiteField propAttribute)
     {
-        if (foreignKeyData == null)
-            return null;
+        object propValue = propInfo.GetValue(data);
 
-        Type type = foreignKeyData.GetType();
-        TableAttribute table = AttributeHelper.GetTypeAttribute<TableAttribute>(type);
-
-        if (table is null)
-            return null;
-
-        return type.GetProperties().FirstOrDefault(_ =>
+        // Special treatment for Foreign Key properties.
+        if (propValue is not null && propAttribute is ForeignKeyColumnAttribute foreignKey)
         {
-            ColumnAttribute column = AttributeHelper.GetPropertyAttribute<ColumnAttribute>(_);
-            return column is not null &&
-                   (column.TableAlias is null && table.Alias is null || column.TableAlias == table.Alias) &&
-                   (columnName is null && column.IsPrimaryKey || column.Name == columnName);
-        })?.GetValue(foreignKeyData);
+            Type type = propValue.GetType();
+            TableAttribute table = AttributeHelper.GetTypeAttribute<TableAttribute>(type);
+
+            return table is null
+                ? null
+                : type.GetProperties().FirstOrDefault(_ =>
+                {
+                    ColumnAttribute column = AttributeHelper.GetPropertyAttribute<ColumnAttribute>(_);
+                    return column is not null &&
+                           column.TableAlias == table.Alias &&
+                           (foreignKey.TargetColumn is null && column.IsPrimaryKey ||
+                            column.Name == foreignKey.TargetColumn);
+                })?.GetValue(propValue);
+        }
+
+        return propValue;
     }
     #endregion
 

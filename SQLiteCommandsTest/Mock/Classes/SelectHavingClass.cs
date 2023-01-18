@@ -5,7 +5,7 @@ using SQLiteCommands.Attributes.Table;
 namespace SQLiteCommandsTest.Mock.Classes;
 
 [Table("TAB_TST_TEST")]
-[SelectOptions(false, Having = "COUNT(DoubleValue) < 5")]
+[SelectOptions(Having = "COUNT(DoubleValue) < 5")]
 internal class SelectHavingClass
 {
     [Column("TST_INT_ID")]

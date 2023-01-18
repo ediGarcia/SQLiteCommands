@@ -5,7 +5,7 @@ using SQLiteCommands.Attributes.Table;
 namespace SQLiteCommandsTest.Mock.Classes;
 
 [Table("TAB_TST_TEST")]
-[SelectOptions(true)]
+[SelectOptions(RemoveDuplicates = true)]
 internal class SelectDistinctClass
 {
     [Column("TST_INT_ID")]

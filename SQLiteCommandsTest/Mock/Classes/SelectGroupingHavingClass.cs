@@ -5,7 +5,7 @@ using SQLiteCommands.Attributes.Table;
 namespace SQLiteCommandsTest.Mock.Classes;
 
 [Table("TAB_TST_TEST")]
-[SelectOptions(false, Having = "TST_INT_INTCOLUMN > 5")]
+[SelectOptions(Having = "TST_INT_INTCOLUMN > 5")]
 internal class SelectGroupingHavingClass
 {
     [Column("TST_INT_ID")]

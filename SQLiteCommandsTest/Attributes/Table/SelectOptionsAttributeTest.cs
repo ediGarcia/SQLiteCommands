@@ -6,25 +6,11 @@ namespace SQLiteCommandsTest.Attributes.Table;
 [TestFixture]
 internal class SelectOptionsAttributeTest
 {
-    #region Constructor
+    #region Properties
 
     [TestCase(false)]
     [TestCase(true)]
-    public void SelectOptionsAttribute_Constructor_ShouldSetTheRemoveDuplicatesProperty(bool removeDuplicates)
-    {
-        // Act
-        SelectOptionsAttribute selectOptions = new(removeDuplicates);
-
-        // Assert
-        Assert.AreEqual(removeDuplicates, selectOptions.RemoveDuplicates);
-    }
-
-    #endregion
-
-    #region Properties
-
-    [Test]
-    public void SelectOptionsAttribute_Setters_ShouldSetTheProperties()
+    public void SelectOptionsAttribute_Setters_ShouldSetTheProperties(bool removeDuplicates)
     {
         // Arrange
         const string filterMock = "filter";
@@ -33,12 +19,13 @@ internal class SelectOptionsAttributeTest
         const int offsetMock = 3;
 
         // Act
-        SelectOptionsAttribute selectOptions = new(true)
+        SelectOptionsAttribute selectOptions = new()
         {
             Filter = filterMock,
             Having = havingMock,
             Limit = limitMock,
-            Offset = offsetMock
+            Offset = offsetMock,
+            RemoveDuplicates = removeDuplicates
         };
 
         // Assert
@@ -46,7 +33,7 @@ internal class SelectOptionsAttributeTest
         Assert.AreEqual(havingMock, selectOptions.Having);
         Assert.AreEqual(limitMock, selectOptions.Limit);
         Assert.AreEqual(offsetMock, selectOptions.Offset);
-
+        Assert.AreEqual(removeDuplicates, selectOptions.RemoveDuplicates);
     }
 
     #endregion
