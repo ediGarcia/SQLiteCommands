@@ -24,4 +24,10 @@
     <Folder Include="Mock\TemporaryFiles\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="HelperMethods">
+      <HintPath>..\..\..\..\Dropbox\Projects\DLL\HelperMethods.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>
