@@ -1,4 +1,5 @@
-﻿using HelperMethods;
+﻿using System.Data;
+using HelperMethods;
 using NUnit.Framework;
 using SQLiteCommands.Services;
 using System.Data.SQLite;
@@ -7,7 +8,7 @@ namespace SQLiteCommandsTest.Services;
 
 internal class DatabaseServiceTest
 {
-    private const string MockDatabaseDirectoryPath = @"Mock";
+    private const string MockDatabaseDirectoryPath = "Mock";
     private const string MockDatabaseFilePath = @"Mock\Test.dat";
 
     #region SetUps and TearDowns
@@ -22,26 +23,7 @@ internal class DatabaseServiceTest
 
     [TearDown]
     public void TearDown() =>
-SystemMethods.Delete(MockDatabaseFilePath);
-
-    #endregion
-
-    #region OpenConnection
-
-    [Test]
-    public void DatabaseService_OpenConnection_ShouldCreateADatabaseAndConnectToIt()
-    {
-        Assert.IsFalse(SystemMethods.CheckFileExists(MockDatabaseFilePath));
-
-        // Act
-        using SQLiteConnection connection = DatabaseService.OpenConnection(MockDatabaseFilePath);
-
-        // Assert
-        Assert.AreEqual(SystemMethods.GetFullPath(MockDatabaseFilePath), connection.FileName);
-        Assert.IsTrue(File.Exists(connection.FileName));
-        Assert.AreEqual(0, SystemMethods.GetSizeFromPath(MockDatabaseFilePath));
-        Assert.IsTrue(connection.ServerVersion.StartsWith("3."));
-    }
+        SystemMethods.Delete(MockDatabaseFilePath);
 
     #endregion
 
@@ -60,5 +42,40 @@ SystemMethods.Delete(MockDatabaseFilePath);
         Assert.AreEqual($"Data Source={testPathMock}; Version=3;", result);
     }
 
+    [Test]
+    public void DatabaseService_GenerateConnectionString_ShouldGenerateAConnectionString_WhenTheDatabaseVersionIsSpecified()
+    {
+        // Arrange
+        const string testPathMock = "testPath";
+        const int versionNumberMock = 4;
+
+        // Act
+        string result = DatabaseService.GenerateConnectionString(testPathMock, versionNumberMock);
+
+        // Assert
+        Assert.AreEqual($"Data Source={testPathMock}; Version={versionNumberMock};", result);
+    }
+
+    #endregion
+
+    #region OpenConnection
+    [Test]
+    public void DatabaseService_OpenConnection_ShouldCreateADatabaseAndConnectToIt()
+    {
+        Assert.IsFalse(SystemMethods.CheckFileExists(MockDatabaseFilePath));
+
+        // Act
+        using SQLiteConnection connection = DatabaseService.OpenConnection(MockDatabaseFilePath);
+
+        // Assert
+        Assert.IsNotNull(connection);
+        Assert.AreEqual(SystemMethods.GetFullPath(MockDatabaseFilePath), connection.FileName);
+        Assert.IsTrue(File.Exists(connection.FileName));
+        Assert.AreEqual(0, SystemMethods.GetSize(MockDatabaseFilePath));
+        Assert.IsTrue(connection.ServerVersion.StartsWith("3."));
+        Assert.AreEqual(ConnectionState.Open, connection.State);
+
+        connection.Close();
+    }
     #endregion
 }

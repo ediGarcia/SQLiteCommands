@@ -4,6 +4,7 @@ using SQLiteCommands.Attributes.Field;
 using SQLiteCommands.Exceptions;
 using SQLiteCommands.Services;
 using SQLiteCommandsTest.Mock.Classes;
+#pragma warning disable CS8619
 
 // ReSharper disable StringLiteralTypo
 
@@ -12,511 +13,76 @@ namespace SQLiteCommandsTest.Services;
 [TestFixture]
 internal class CommandGeneratorServiceTest
 {
-    #region GenerateDeleteCommand
+    #region Delete
 
-    [Test]
-    public void
-        CommandGeneratorService_GenerateDeleteCommand_ShouldThrowException_WhenTheClassPropertiesHaveNoValidAttributes()
-    {
-        // Act & Assert
-        InvalidTypeException exception = Assert.Throws<InvalidTypeException>(
-            () => CommandGeneratorService.GenerateDeleteCommand(new TableWithoutColumnsClass()));
-        Assert.AreEqual(
-            $"No eligible primary key {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.",
-            exception.Message);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateDeleteCommand_ShouldThrowException_WhenTheClassPropertiesHaveNoValue()
-    {
-        // Act & Assert
-        InvalidTypeException exception = Assert.Throws<InvalidTypeException>(
-            () => CommandGeneratorService.GenerateDeleteCommand(new TableClass()));
-        Assert.AreEqual(
-            $"No eligible primary key {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.",
-            exception.Message);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateDeleteCommand_ShouldGenerateADeleteCommand_WhenTheClassPropertiesHaveValues()
+    [TestCaseSource(nameof(ConnectionTestData))]
+    public void CommandGeneratorServiceTest_GenerateDeleteCommand_ShouldGenerateTheDeleteSQLiteCommand(SQLiteConnection connection)
     {
         // Arrange
-        TableColumnForeignKey table = new()
+        const int primaryColumnValueMock = 1;
+        const int foreignColumnValueMock = 5;
+        ForeignDeleteClassMock foreignValueMock = new() { ForeignPrimaryKey = foreignColumnValueMock };
+        DeleteClassMock dataMock = new()
         {
-            Id = 5000,
-            IdIgnore = 6000,
-            NoPrimaryId = 7000,
-            ForeignKey = new()
-            {
-                Id = 8000
-            },
-            ForeignKeyIgnore = new()
-            {
-                Id = 9000
-            },
-            NonPrimaryForeignKey = new()
-            {
-                Id = 1000
-            }
+            PrimaryProperty = primaryColumnValueMock,
+            PrimaryPropertyIgnore = 2,
+            Property = 3,
+            IgnoreProperty = 4,
+            ForeignPrimaryProperty = foreignValueMock,
+            ForeignPrimaryPropertyIgnore = new() { ForeignPrimaryKey = 6 },
+            ForeignProperty = new() { ForeignPrimaryKey = 7 },
+            ForeignIgnoreProperty = new() { ForeignPrimaryKey = 8 },
+            ForeignInnerNullProperty = new(),
+            NoAttributeProperty = 10
         };
 
         // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateDeleteCommand(table);
+        SQLiteCommand command = CommandGeneratorService.GenerateDeleteCommand(dataMock, connection);
 
         // Assert
-        Assert.IsNotNull(result);
-        Assert.AreEqual(2, result.Parameters.Count);
-        Assert.AreEqual("@CFK_INT_ID", result.Parameters[0].ParameterName);
-        Assert.AreEqual(table.Id, result.Parameters[0].Value);
-        Assert.AreEqual("@CFK_FOR_INT_ID", result.Parameters[1].ParameterName);
-        Assert.AreEqual(table.ForeignKey.Id, result.Parameters[1].Value);
-        Assert.AreEqual("DELETE FROM TAB_CFK_COLUMNFOREIGNKEY WHERE 1 = 1 AND CFK_INT_ID = @CFK_INT_ID AND CFK_FOR_INT_ID = @CFK_FOR_INT_ID", result.CommandText);
+        Assert.IsNotNull(command);
+        Assert.AreEqual(connection, command.Connection);
+        Assert.AreEqual("DELETE FROM TAB_DEL_DELETE-TEST WHERE 1 = 1 AND DEL_INT_PRIMARYFIELD = @DEL_INT_PRIMARYFIELD AND DEL_INT_NULLFIELD = @DEL_INT_NULLFIELD AND FOR_DEL_INT_PRIMARYFIELD = @FOR_DEL_INT_PRIMARYFIELD AND FOR_DEL_INT_NULLFIELD = @FOR_DEL_INT_NULLFIELD AND FOR_DEL_INT_INNERNULLFIELD = @FOR_DEL_INT_INNERNULLFIELD", command.CommandText);
+        Assert.AreEqual(5, command.Parameters.Count);
+        Assert.AreEqual(primaryColumnValueMock, command.Parameters["@DEL_INT_PRIMARYFIELD"].Value);
+        Assert.AreEqual(DBNull.Value, command.Parameters["@DEL_INT_NULLFIELD"].Value);
+        Assert.AreEqual(foreignColumnValueMock, command.Parameters["@FOR_DEL_INT_PRIMARYFIELD"].Value);
+        Assert.AreEqual(DBNull.Value, command.Parameters["@FOR_DEL_INT_NULLFIELD"].Value);
+        Assert.AreEqual(DBNull.Value, command.Parameters["@FOR_DEL_INT_INNERNULLFIELD"].Value);
     }
+
+    [Test]
+    public void CommandGeneratorServiceTest_GenerateDeleteCommand_ShouldThrowError_WhenTheClassHasNoValidColumn() =>
+        // Act & Assert
+        Assert.Throws<InvalidTypeException>(
+            () => CommandGeneratorService.GenerateDeleteCommand(new EmptyDeleteClassMock()),
+            $"No eligible primary key {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.");
 
     #endregion
 
-    #region GenerateInsertCommand
+    #region Insert
 
-    [Test]
-    public void
-        CommandGeneratorService_GenerateInsertCommand_ShouldThrowException_WhenTheClassPropertiesHaveNoValidAttributes()
-    {
-        // Act & Assert
-        InvalidTypeException exception = Assert.Throws<InvalidTypeException>(
-            () => CommandGeneratorService.GenerateInsertCommand(new TableWithoutColumnsClass()));
-        Assert.AreEqual(
-            $"No eligible {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.",
-            exception.Message);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateInsertCommand_ShouldThrowException_WhenTheClassPropertiesHaveNoValue()
-    {
-        // Act & Assert
-        InvalidTypeException exception = Assert.Throws<InvalidTypeException>(
-            () => CommandGeneratorService.GenerateInsertCommand(new TableClass()));
-        Assert.AreEqual(
-            $"No eligible {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.",
-            exception.Message);
-    }
-
-    [TestCaseSource(nameof(InsertClassTestCases))]
-    public void
-        CommandGeneratorService_GenerateInsertCommand_ShouldGenerateAInsertCommand_WhenTheClassPropertiesHaveValues<T>(T data, string expectedCommandText) where T : InsertClasses
-    {
-        // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateInsertCommand(data);
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.AreEqual(3, result.Parameters.Count);
-        Assert.AreEqual("@Id", result.Parameters[0].ParameterName);
-        Assert.AreEqual(data.Id, result.Parameters[0].Value);
-        Assert.AreEqual("@ForeignKey", result.Parameters[1].ParameterName);
-        Assert.AreEqual(data.ForeignKey.Id, result.Parameters[1].Value);
-        Assert.AreEqual("@ForeignKey2", result.Parameters[2].ParameterName);
-        Assert.AreEqual(data.ForeignKey2.StringProperty, result.Parameters[2].Value);
-        Assert.AreEqual(expectedCommandText, result.CommandText);
-    }
-
-    #endregion
-
-    #region GenerateSelectCommand
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldThrowException_WhenTheClassHasNoPropertyWithAttributes()
-    {
-        // Act & Assert
-        InvalidTypeException exception = Assert.Throws<InvalidTypeException>(() =>
-            CommandGeneratorService.GenerateSelectCommand(new TableWithoutColumnsClass()));
-        Assert.AreEqual($"No eligible {nameof(ColumnAttribute)}, {nameof(CustomColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.", exception.Message);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateASimpleSelectCommand_WhenClassHasNoSelectAttributeAndNoValues()
-    {
-        // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new TableClass());
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.IsEmpty(result.Parameters);
-        Assert.AreEqual("SELECT TST_INT_ID AS Id, TST_REA_DOUBLEVALUE AS DoubleValue, TST_TXT_STRINGVALUE AS StringValue, (TST_INT_ID + TST_REA_DOUBLEVALUE) AS CustomValue FROM TAB_TST_TEST WHERE 1 = 1",
-            result.CommandText);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateASelectCommand_WhenClassHasValues()
+    [TestCaseSource(nameof(ConnectionTestData))]
+    public void CommandGeneratorServiceTest_GenerateInsertCommand_ShouldGenerateTheDeleteSQLiteCommand(SQLiteConnection connection)
     {
         // Arrange
-        const int idMock = 3;
-        const double doubleValueMock = 3.14;
-        const string stringValueMock = "stringValue";
-        const string idParameter = "@Id";
-        const string doubleValueParameter = "@DoubleValue";
-        const string stringValueParameter = "@StringValue";
-        TableClass tableClass = new()
+        const int idMock = 1;
+        InsertClass dataMock = new()
         {
             Id = idMock,
-            DoubleValue = doubleValueMock,
-            StringValue = stringValueMock
+            IdIgnore = 2,
+
         };
 
         // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(tableClass);
+        SQLiteCommand command = CommandGeneratorService.GenerateInsertCommand(dataMock, connection);
 
         // Assert
-        Assert.IsNotNull(result);
-        Assert.AreEqual(3, result.Parameters.Count);
-        Assert.AreEqual(idParameter, result.Parameters[0].ParameterName);
-        Assert.AreEqual(idMock, result.Parameters[0].Value);
-        Assert.AreEqual(doubleValueParameter, result.Parameters[1].ParameterName);
-        Assert.AreEqual(doubleValueMock, result.Parameters[1].Value);
-        Assert.AreEqual(stringValueParameter, result.Parameters[2].ParameterName);
-        Assert.AreEqual(stringValueMock, result.Parameters[2].Value);
-        Assert.AreEqual(
-            $"SELECT TST_INT_ID AS Id, TST_REA_DOUBLEVALUE AS DoubleValue, TST_TXT_STRINGVALUE AS StringValue, (TST_INT_ID + TST_REA_DOUBLEVALUE) AS CustomValue FROM TAB_TST_TEST WHERE 1 = 1 AND Id = {idParameter} AND DoubleValue = {doubleValueParameter} AND StringValue = {stringValueParameter}",
-            result.CommandText);
-    }
-
-    [TestCaseSource(nameof(SelectClassTestCases))]
-    public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateASelectCommand_WhenClassContainsTheSelectAttributeAndNoValues<
-            T>(T selectClass, string expectedCommandText)
-    {
-        // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(selectClass);
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.IsEmpty(result.Parameters);
-        Assert.AreEqual(expectedCommandText, result.CommandText);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateASelectCommandWithFilter_WhenTheSelectAttributeFilterPropertyHasValue()
-    {
-        // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new SelectFilteredClass());
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.IsEmpty(result.Parameters);
-        Assert.AreEqual(
-            "SELECT TST_INT_ID AS Id, TST_REA_DOUBLEVALUE AS DoubleValue, TST_TXT_STRINGVALUE AS StringValue FROM TAB_TST_TEST WHERE 1 = 1 AND (DoubleValue < 10)",
-            result.CommandText);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateASimpleSelectCommand_WhenTheClassPropertiesHasNoGroupingAttributesAndSelectAttributeHavingPropertyHasValue()
-    {
-        // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new SelectHavingClass());
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.IsEmpty(result.Parameters);
-        Assert.AreEqual("SELECT TST_INT_ID AS Id, TST_REA_DOUBLEVALUE AS DoubleValue, TST_TXT_STRINGVALUE AS StringValue FROM TAB_TST_TEST WHERE 1 = 1",
-            result.CommandText);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateASelectCommandWithLimit_WhenTheSelectAttributeLimitPropertyHasValue()
-    {
-        // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new SelectLimitClass());
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.IsEmpty(result.Parameters);
-        Assert.AreEqual("SELECT TST_INT_ID AS Id, TST_REA_DOUBLEVALUE AS DoubleValue, TST_TXT_STRINGVALUE AS StringValue FROM TAB_TST_TEST WHERE 1 = 1 LIMIT 7",
-            result.CommandText);
-    }
-
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateASelectCommandWithLimitAndOffset_WhenTheSelectAttributeLimitAndOffsetPropertiesHaveValue()
-    {
-        // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new SelectLimitOffsetClass());
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.IsEmpty(result.Parameters);
-        Assert.AreEqual("SELECT TST_INT_ID AS Id, TST_REA_DOUBLEVALUE AS DoubleValue, TST_TXT_STRINGVALUE AS StringValue FROM TAB_TST_TEST WHERE 1 = 1 LIMIT 6 OFFSET 9",
-            result.CommandText);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateASimpleSelectCommand_WhenTheSelectAttributeLimitPropertyHasNoValueAndTheOffsetPropertyHasValue()
-    {
-        // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new SelectOffsetClass());
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.IsEmpty(result.Parameters);
-        Assert.AreEqual("SELECT TST_INT_ID AS Id, TST_REA_DOUBLEVALUE AS DoubleValue, TST_TXT_STRINGVALUE AS StringValue FROM TAB_TST_TEST WHERE 1 = 1",
-            result.CommandText);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldCreateASelectCommandWithTheForeignKeyValue_WhenTheClassContainsForeignKeys()
-    {
-        // Arrange
-        const int primaryKeyColumnValueMock = 1;
-        const int regularColumnValueMock = 2;
-        const string primaryKeyForeignKeyParameter = "@ForeignKey";
-        const string nonPrimaryKeyForeignKeyParameter = "@NoPrimaryForeignKey";
-        TableForeignKey foreignTableClass = new()
-        {
-            ForeignKey = new TableForeignKeyTargetClass
-            {
-                Id = primaryKeyColumnValueMock
-            },
-            NoPrimaryForeignKey = new TableForeignKeyTargetClass
-            {
-                NonPrimaryColumn = regularColumnValueMock
-            },
-            NoTable = new NoTableClass()
-        };
-
-        // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(foreignTableClass);
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.AreEqual(2, result.Parameters.Count);
-        Assert.AreEqual(primaryKeyForeignKeyParameter, result.Parameters[0].ParameterName);
-        Assert.AreEqual(primaryKeyColumnValueMock, result.Parameters[0].Value);
-        Assert.AreEqual(nonPrimaryKeyForeignKeyParameter, result.Parameters[1].ParameterName);
-        Assert.AreEqual(regularColumnValueMock, result.Parameters[1].Value);
-        Assert.AreEqual($"SELECT TST_FOR_INT_ID AS ForeignKey, TST_FOR_INT_NOPRIMARY AS NoPrimaryForeignKey, TST_FOR_INT_NOTABLE AS NoTable FROM TAB_TST_TEST WHERE 1 = 1 AND ForeignKey = {primaryKeyForeignKeyParameter} AND NoPrimaryForeignKey = {nonPrimaryKeyForeignKeyParameter}", result.CommandText);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldCreateASelectCommandWithTheOrderByClause_WhenTheClassContainsFieldsWithNoValueAndTheSortingFieldAttribute()
-    {
-        // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new TableSortedFieldsClass());
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.AreEqual(
-            "SELECT TST_INT_ID AS Id, TST_INT_COLUMN AS IntColumn FROM TAB_TST_TEST WHERE 1 = 1 ORDER BY Id ASC NULLS FIRST, IntColumn DESC NULLS LAST",
-            result.CommandText);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldCreateASelectCommandWithTheOrderByClause_WhenTheClassContainsFieldsWithValueAndTheSortingFieldAttribute()
-    {
-        // Arrange
-        const int idValueMock = 1;
-        const string idParameter = "@Id";
-        TableSortedFieldsClass sortedFieldsClass = new()
-        {
-            Id = idValueMock,
-            IntColumn = 2
-        };
-
-        // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(sortedFieldsClass);
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.AreEqual(1, result.Parameters.Count);
-        Assert.AreEqual(idParameter, result.Parameters[0].ParameterName);
-        Assert.AreEqual(idValueMock, result.Parameters[0].Value);
-        Assert.AreEqual(
-            "SELECT TST_INT_ID AS Id, TST_INT_COLUMN AS IntColumn FROM TAB_TST_TEST WHERE 1 = 1 AND Id = @Id ORDER BY Id ASC NULLS FIRST, IntColumn DESC NULLS LAST",
-            result.CommandText);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldCreateASelectCommandWithTheGroupByStatement_WhenTheClassContainsPropertiesWithTheGroupingAttribute()
-    {
-        // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new TableGroupingClass());
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.AreEqual(
-            "SELECT TST_INT_ID AS Id, TST_INT_INTCOLUMN AS IntColumn, TST_CHR_TEXTCOLUMN AS TextColumn FROM TAB_TST_TEST WHERE 1 = 1 GROUP BY IntColumn, TextColumn",
-            result.CommandText);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldCreateASelectCommandWithTheGroupByStatement_WhenTheClassContainsHavingDataAndPropertiesWithTheGroupingAttribute()
-    {
-        // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new SelectGroupingHavingClass());
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.AreEqual(
-            "SELECT TST_INT_ID AS Id, TST_INT_INTCOLUMN AS IntColumn, TST_CHR_TEXTCOLUMN AS TextColumn FROM TAB_TST_TEST WHERE 1 = 1 GROUP BY IntColumn, TextColumn HAVING TST_INT_INTCOLUMN > 5",
-            result.CommandText);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldGenerateJoinClauses_WhenTheClassHasTheJoinAttribute()
-    {
-        // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new TableJoinClass());
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.AreEqual(
-            "SELECT TST_INT_ID AS Id FROM TAB_TST_TEST CROSS JOIN TAB_CRS_CROSS AS CRS ON CRS_INT_ID = TST_CRS_INT_ID INNER JOIN TAB_INN_INNER AS INN ON CRS_INT_ID = TST_INN_INT_ID LEFT OUTER JOIN TAB_OUT_OUTER AS OUT ON CRS_INT_ID = TST_OUT_INT_ID WHERE 1 = 1",
-            result.CommandText);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateSelectCommand_ShouldUseTheCorrectAliasForEachColumn_WhenTheTableAliasAreDefined()
-    {
-        // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateSelectCommand(new TableAliasClass());
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.AreEqual(
-            "SELECT TST.TST_INT_ID AS Id, ALI.TST_INT_COLUMNALIAS AS ColumnWithAlias, TST.TST_FOR_INT_ID AS ForeignKey, FOR.TST_FOR_INT_ID2 AS ForeignKey2, TST.TST_INT_SORTING AS SortingColumn, SOR.TST_INT_SORTING2 AS SortingColumn2, TST.TST_INT_GROUPCOLUMN AS GroupingColumn, GRP.TST_INT_GROUPCOLUMN2 AS GroupingColumn2 FROM TAB_TST_TEST AS TST WHERE 1 = 1 GROUP BY GroupingColumn, GroupingColumn2 ORDER BY SortingColumn ASC NULLS FIRST, SortingColumn2 ASC NULLS FIRST",
-            result.CommandText);
+        Assert.IsNotNull(command);
     }
 
     #endregion
 
-    #region GenerateUpdateCommand
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateUpdateCommand_ShouldThrowException_WhenTheClassPropertiesHaveNoValidAttributes()
-    {
-        // Act & Assert
-InvalidTypeException exception = Assert.Throws<InvalidTypeException>(
-            () => CommandGeneratorService.GenerateUpdateCommand(new TableWithoutColumnsClass()));
-Assert.AreEqual(
-    $"No eligible {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.",
-    exception.Message);
-    }
-
-    [Test]
-    public void
-        CommandGeneratorService_GenerateUpdateCommand_ShouldThrowException_WhenTheClassPropertiesHaveNoValue()
-    {
-        // Act & Assert
-        InvalidTypeException exception = Assert.Throws<InvalidTypeException>(
-            () => CommandGeneratorService.GenerateUpdateCommand(new TableClass()));
-        Assert.AreEqual(
-            $"No eligible {nameof(ColumnAttribute)} or {nameof(ForeignKeyColumnAttribute)} found among current data properties.",
-            exception.Message);
-    }
-
-    [Test]
-    public void CommandGeneratorService_GenerateAUpdateCommand_ShouldGenerateAnUpdateCommand()
-    {
-        // Arrange
-        UpdateTableClass tableClass = new()
-        {
-            Id = 1,
-            IdIgnore = 2,
-            StringProperty = "data1",
-            StringPropertyIgnore = "ignoredData",
-            StringProperty2 = "data2",
-            ForeignKeyColumn = new() { Id = 3 },
-            ForeignKeyColumnIgnore = new() { Id = 4 }
-        };
-
-        // Act
-        SQLiteCommand result = CommandGeneratorService.GenerateUpdateCommand(tableClass);
-
-        // Assert
-        Assert.IsNotNull(result?.Parameters);
-        Assert.AreEqual(4, result.Parameters.Count);
-        Assert.AreEqual("@TST_INT_ID", result.Parameters[0].ParameterName);
-        Assert.AreEqual(tableClass.Id, result.Parameters[0].Value);
-        Assert.AreEqual("@TST_STR_PROP", result.Parameters[1].ParameterName);
-        Assert.AreEqual(tableClass.StringProperty, result.Parameters[1].Value);
-        Assert.AreEqual("@TST_STR_PROP_1", result.Parameters[2].ParameterName);
-        Assert.AreEqual(tableClass.StringProperty2, result.Parameters[2].Value);
-        Assert.AreEqual("@TST_FOR_INT_ID", result.Parameters[3].ParameterName);
-        Assert.AreEqual(tableClass.ForeignKeyColumn.Id, result.Parameters[3].Value);
-        Assert.AreEqual(
-            "UPDATE OR ROLLBACK TAB_TST_TEST SET TST_STR_PROP = @TST_STR_PROP, TST_STR_PROP = @TST_STR_PROP_1, TST_FOR_INT_ID = @TST_FOR_INT_ID WHERE 1 = 1 AND TST_INT_ID = @TST_INT_ID",
-            result.CommandText);
-    }
-
-    #endregion
-
-    #region Test Cases Sources
-
-    #region SelectClassTestCases
-    /// <summary>
-    /// Generates test cases to test the "RemoveDuplicates" property of the Select attribute.
-    /// </summary>
-    /// <returns></returns>
-    public static IEnumerable<TestCaseData> SelectClassTestCases()
-    {
-        yield return new TestCaseData(new SelectClass(),
-            "SELECT TST_INT_ID AS Id, TST_REA_DOUBLEVALUE AS DoubleValue, TST_TXT_STRINGVALUE AS StringValue FROM TAB_TST_TEST WHERE 1 = 1");
-        yield return new TestCaseData(new SelectDistinctClass(),
-            "SELECT DISTINCT TST_INT_ID AS Id, TST_REA_DOUBLEVALUE AS DoubleValue, TST_TXT_STRINGVALUE AS StringValue FROM TAB_TST_TEST WHERE 1 = 1");
-    }
-    #endregion
-
-    #region InsertClassTestCases
-    /// <summary>
-    /// Generates test cases for the INSERT command generation.
-    /// </summary>
-    /// <returns></returns>
-    public static IEnumerable<TestCaseData> InsertClassTestCases()
-    {
-        yield return new(new InsertClassWithoutAttribute
-        {
-            Id = 1,
-            IdIgnore = 2,
-            ForeignKey = new() { Id = 3 },
-            ForeignKey2 = new() { StringProperty = "PropValue" },
-            ForeignKeyIgnore = new() { Id = 4 }
-        }, "INSERT OR ROLLBACK INTO TAB_TST_TEST (TST_INT_ID,FOR_TST_INT_ID,FOR_TST_CHR_STRING) VALUES (@Id,@ForeignKey,@ForeignKey2)");
-
-        yield return new(new InsertClass
-        {
-            Id = 1,
-            IdIgnore = 2,
-            ForeignKey = new() { Id = 3 },
-            ForeignKey2 = new() { StringProperty = "PropValue" },
-            ForeignKeyIgnore = new() { Id = 4 }
-        }, "INSERT OR ROLLBACK INTO TAB_TST_TEST (TST_INT_ID,FOR_TST_INT_ID,FOR_TST_CHR_STRING) VALUES (@Id,@ForeignKey,@ForeignKey2)");
-
-        yield return new(new InsertOrReplaceClass
-        {
-            Id = 1,
-            IdIgnore = 2,
-            ForeignKey = new() { Id = 3 },
-            ForeignKey2 = new() { StringProperty = "PropValue" },
-            ForeignKeyIgnore = new() { Id = 4 }
-        }, "INSERT OR REPLACE INTO TAB_TST_TEST (TST_INT_ID,FOR_TST_INT_ID,FOR_TST_CHR_STRING) VALUES (@Id,@ForeignKey,@ForeignKey2)");
-    }
-    #endregion
-
-    #endregion
+    private static SQLiteConnection[] ConnectionTestData =>
+        new[] { new SQLiteConnection(), null };
 }

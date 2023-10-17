@@ -5,24 +5,59 @@ namespace SQLiteCommandsTest.Attributes.Field;
 
 internal class OneToManyDataAttributeTest
 {
-    #region Properties
+    #region Constructor
 
     [Test]
-    public void OneToManyDataAttribute_Setters_ShouldSetTheProperties()
+    public void OneToManyDataAttribute_Constructor_ShouldSetTheTargetColumn()
     {
-        const string localColumnMock = "localColumnName";
-        const string targetColumnMock = "targetColumnMock";
+        // Arrange
+        const string targetColumnMock = "TargetMock";
 
         // Act
-        OneToManyDataAttribute oneToManyData = new()
+        OneToManyDataAttribute field = new(targetColumnMock);
+
+        // Assert
+        Assert.AreEqual(targetColumnMock, field.TargetColumn);
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase(" ")]
+    public void OneToManyDataAttribute_Constructor_ShouldThrowExceptionWhenTargetColumnIsEmpty(string targetColumn)
+    {
+        // Act & Assert
+        ArgumentNullException exception =
+            Assert.Throws<ArgumentNullException>(() => new OneToManyDataAttribute(targetColumn));
+        Assert.AreEqual("The target table column name must be filled. (Parameter 'targetColumn')", exception.Message);
+    }
+
+    #endregion
+
+    #region Properties
+
+    [TestCase(true, false, true)]
+    [TestCase(false, true, false)]
+    public void OneToManyDataAttribute_Setters_ShouldSetTheProperties(
+        bool cascadeDelete,
+        bool cascadeInsertOrUpdate,
+        bool cascadeSelect)
+    {
+        const string localColumnMock = "localColumnName";
+
+        // Act
+        OneToManyDataAttribute oneToManyData = new("TargetColumn")
         {
-            LocalColumn = localColumnMock,
-            TargetColumn = targetColumnMock
+            CascadeDelete = cascadeDelete,
+            CascadeInsertOrUpdate = cascadeInsertOrUpdate,
+            CascadeSelect = cascadeSelect,
+            LocalColumn = localColumnMock
         };
 
         // Assert
+        Assert.AreEqual(cascadeDelete, oneToManyData.CascadeDelete);
+        Assert.AreEqual(cascadeInsertOrUpdate, oneToManyData.CascadeInsertOrUpdate);
+        Assert.AreEqual(cascadeSelect, oneToManyData.CascadeSelect);
         Assert.AreEqual(localColumnMock, oneToManyData.LocalColumn);
-        Assert.AreEqual(targetColumnMock, oneToManyData.TargetColumn);
     }
 
     #endregion

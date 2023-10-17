@@ -1,5 +1,6 @@
 ﻿using NUnit.Framework;
 using SQLiteCommands.Attributes.Field;
+#pragma warning disable CS8625
 
 namespace SQLiteCommandsTest.Attributes.Field;
 
@@ -16,12 +17,13 @@ internal class ColumnAttributeTest
 
         Assert.DoesNotThrow(() => field = new(columnNameMock));
         Assert.AreEqual(columnNameMock, field.Name);
+        Assert.IsNull(field.DefaultValue);
     }
 
     [Test]
     public void ColumnAttribute_Constructor_ShouldThrowException_WhenTheNameParameterIsNull()
     {
-        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new ColumnAttribute(null!));
+        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new ColumnAttribute(null));
         Assert.AreEqual("The column's name must be filled. (Parameter 'name')", exception.Message);
     }
 

@@ -1,5 +1,4 @@
 ﻿using SQLiteCommands.Helpers;
-#pragma warning disable CS8618
 
 namespace SQLiteCommands.Attributes.Table;
 
@@ -25,7 +24,7 @@ public class TableAttribute : Attribute
 
     public TableAttribute(string name)
     {
-        AttributeHelper.CheckNullProperty(name, nameof(name), "table name");
+        AttributeHelper.ValidatePropertyValue(name, nameof(name), "table name");
         Name = name;
     }
 }

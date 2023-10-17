@@ -1,5 +1,6 @@
 ﻿using NUnit.Framework;
 using SQLiteCommands.Attributes.Field;
+#pragma warning disable CS8625
 
 namespace SQLiteCommandsTest.Attributes.Field;
 
@@ -24,7 +25,7 @@ internal class CustomColumnAttributeTest
     [Test]
     public void CustomColumnAttribute_Constructor_ShouldThrowException_WhenTheCustomDataParameterIsNull()
     {
-        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new CustomColumnAttribute(null!));
+        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new CustomColumnAttribute(null));
         Assert.AreEqual("The custom column's data must be filled. (Parameter 'customData')", exception.Message);
     }
 

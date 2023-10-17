@@ -8,46 +8,107 @@ internal class ManyToManyDataAttributeTest
     #region Constructor
 
     [Test]
-    public void ManyToManyDataAttribute_Constructor_ShouldSetTheNameProperty()
+    public void ManyToManyDataAttribute_Constructor_ShouldSetTheJoinTableData()
     {
         // Arrange
-        const string junctionTableMock = "ColumnName";
+        const string joinTableMock = "JoinTable";
+        const string joinTableSourcePrimaryKeyMock = "SourceColumn";
+        const string joinTableTargetPrimaryKeyMock = "TargetColumn";
 
         // Act
-        ManyToManyDataAttribute manyToManyDataAttribute = new(junctionTableMock);
+        ManyToManyDataAttribute field = new(
+            joinTableMock,
+            joinTableSourcePrimaryKeyMock,
+            joinTableTargetPrimaryKeyMock);
 
         // Assert
-        Assert.AreEqual(junctionTableMock, manyToManyDataAttribute.JunctionTable);
+        Assert.AreEqual(joinTableMock, field.JoinTable);
+        Assert.AreEqual(joinTableSourcePrimaryKeyMock, field.JoinTableSourcePrimaryKey);
+        Assert.AreEqual(joinTableTargetPrimaryKeyMock, field.JoinTableTargetPrimaryKey);
     }
 
-    [Test]
-    public void ManyToManyDataAttribute_Constructor_ShouldThrowException_WhenTheNameParameterIsNull()
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase(" ")]
+    public void ManyToManyDataAttribute_Constructor_ShouldThrowException_WhenJoinTableIsNullOrEmpty(string joinTable)
     {
         // Act & Assert
-        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new ManyToManyDataAttribute(null!));
-        Assert.AreEqual("The junction table name must be filled. (Parameter 'junctionTable')", exception.Message);
+        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => 
+            new ManyToManyDataAttribute(
+                joinTable,
+                "SourceColumn",
+                "TargetColumn"));
+        Assert.AreEqual(
+            "The join table name must be filled. (Parameter 'joinTable')",
+            exception.Message);
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase(" ")]
+    public void ManyToManyDataAttribute_Constructor_ShouldThrowException_WhenJoinTableSourcePrimaryKeyIsNull(string joinTableSourcePrimaryKey)
+    {
+        // Act & Assert
+        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() =>
+            new ManyToManyDataAttribute(
+                "JoinTable",
+                joinTableSourcePrimaryKey,
+                "TargetColumn"));
+        Assert.AreEqual(
+            "The join table source primary key name must be filled. (Parameter 'joinTableSourcePrimaryKey')",
+            exception.Message);
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase(" ")]
+    public void ManyToManyDataAttribute_Constructor_ShouldThrowException_WhenJoinTableTargetPrimaryKeyIsNull(string joinTableTargetPrimaryKey)
+    {
+        // Act & Assert
+        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() =>
+            new ManyToManyDataAttribute(
+                "JoinTable",
+                "SourceColumn",
+                joinTableTargetPrimaryKey));
+        Assert.AreEqual(
+            "The join table target primary key name must be filled. (Parameter 'joinTableTargetPrimaryKey')",
+            exception.Message);
     }
 
     #endregion
 
     #region Properties
 
-    [Test]
-    public void ManyToManyDataAttribute_Setters_ShouldSetTheProperties()
+    [TestCase(true, false, true)]
+    [TestCase(false, true, false)]
+    public void ManyToManyDataAttribute_Setters_ShouldSetTheProperties(
+        bool cascadeDelete,
+        bool cascadeInsertOrUpdate,
+        bool cascadeSelect)
     {
-        const string junctionTableColumnMock = "junctionTableColumn";
-        const string localColumnMock = "localColumn";
+        // Arrange
+        const string localColumn = "LocalColumn";
+        const string targetTableColumn = "TargetTableColumn";
 
         // Act
-        ManyToManyDataAttribute manyToManyData = new("junctionTable")
+        ManyToManyDataAttribute field = new(
+            "JoinTable",
+            "JoinTableSourcePrimaryKey",
+            "JoinTableTargetPrimaryKey")
         {
-            JunctionTableColumn = junctionTableColumnMock,
-            LocalColumn = localColumnMock
+            CascadeDelete = cascadeDelete,
+            CascadeInsertOrUpdate = cascadeInsertOrUpdate,
+            CascadeSelect = cascadeSelect,
+            LocalColumn = localColumn,
+            TargetTableColumn = targetTableColumn
         };
 
         // Assert
-        Assert.AreEqual(junctionTableColumnMock, manyToManyData.JunctionTableColumn);
-        Assert.AreEqual(localColumnMock, manyToManyData.LocalColumn);
+        Assert.AreEqual(cascadeDelete, field.CascadeDelete);
+        Assert.AreEqual(cascadeInsertOrUpdate, field.CascadeInsertOrUpdate);
+        Assert.AreEqual(cascadeSelect, field.CascadeSelect);
+        Assert.AreEqual(localColumn, field.LocalColumn);
+        Assert.AreEqual(targetTableColumn, field.TargetTableColumn);
     }
 
     #endregion

@@ -14,7 +14,7 @@ public class JoinAttribute : Attribute
     /// <summary>
     /// Gets the target table alias.
     /// </summary>
-    public string Alias { get; set; }
+    public string Alias { get; }
 
     /// <summary>
     /// Gets and sets the JOIN clause constraints expression.
@@ -35,8 +35,8 @@ public class JoinAttribute : Attribute
 
     public JoinAttribute(string table, string alias, string constraint)
     {
-        AttributeHelper.CheckNullProperty(table, nameof(table), "table name");
-        AttributeHelper.CheckNullProperty(constraint, nameof(constraint), "JOIN clause constraint");
+        AttributeHelper.ValidatePropertyValue(table, nameof(table), "table name");
+        AttributeHelper.ValidatePropertyValue(constraint, nameof(constraint), "JOIN clause constraint");
 
         Table = table;
         Alias = alias;

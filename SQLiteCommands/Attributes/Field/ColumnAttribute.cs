@@ -1,7 +1,6 @@
 ﻿namespace SQLiteCommands.Attributes.Field;
 
-[AttributeUsage(AttributeTargets.Property)]
-public class ColumnAttribute : SQLiteField
+public class ColumnAttribute : SQLiteColumnData
 {
     #region Properties
 

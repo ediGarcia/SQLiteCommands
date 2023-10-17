@@ -1,170 +1,144 @@
-﻿using SQLiteCommands.Exceptions;
+﻿using NUnit.Framework;
+using SQLiteCommands.Attributes.Field;
+using SQLiteCommands.Attributes.Table;
+using SQLiteCommands.Exceptions;
 using SQLiteCommands.Helpers;
 using SQLiteCommandsTest.Mock.Classes;
 using System.Reflection;
-using NUnit.Framework;
-using SQLiteCommands.Attributes.Field;
-using SQLiteCommands.Attributes.Table;
 
 namespace SQLiteCommandsTest.Helpers;
 
-[TestFixture]
 internal class AttributeHelperTest
 {
-    #region CheckNullProperty
-
-    [Test]
-    public void SqliteCommandGenerator_CheckNullProperty_ShouldNotThrowException_WhenThePropertyValueIsNotNull() =>
-        // Act & Assert
-        Assert.DoesNotThrow(() => AttributeHelper.CheckNullProperty("propValue", "propName", "fieldName"));
-
-    [Test]
-    public void SqliteCommandGenerator_CheckNullProperty_ShouldThrowException_WhenThePropertyValueIsNull()
-    {
-        // Arrange
-        const string propName = "propName";
-        const string fieldName = "fieldName";
-
-        // Act & Assert
-        ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => AttributeHelper.CheckNullProperty(null!, propName, fieldName));
-        Assert.AreEqual($"The {fieldName} must be filled. (Parameter '{propName}')", exception.Message);
-    }
-
-    #endregion
-
-    #region CheckPropertyAttributes
-
-    [TestCaseSource(nameof(InvalidAttributeCombinationTestCases))]
-    public void
-        SqliteCommandGenerator_CheckPropertyAttributes_ShouldThrowException_WhenThePropertyAttributeCombinationIsInvalid(
-            PropertyInfo propInfo)
-    {
-        // Act & Assert
-        InvalidAttributeCombinationException exception =
-            Assert.Throws<InvalidAttributeCombinationException>(() =>
-                AttributeHelper.CheckPropertyAttributes(propInfo));
-
-        Assert.AreEqual("Invalid property attribute combination.", exception.Message);
-    }
-
-    [TestCaseSource(nameof(ValidAttributeCombinationTestCases))]
-    public void
-        SqliteCommandGenerator_CheckPropertyAttributes_ShouldNotThrowException_WhenThePropertyAttributeCombinationIsValid(
-            PropertyInfo propInfo) =>
-        // Act & Assert
-            Assert.DoesNotThrow(() => AttributeHelper.CheckPropertyAttributes(propInfo));
-
-    #endregion
-
     #region GetPropertyAttribute
 
     [Test]
-    public void SqliteCommandGenerator_GetPropertyAttribute_ShouldReturnTheAttribute_WhenThePropertyContainsTheSpecifiedAttribute()
-    {
-        // Act
-        ColumnAttribute result =
-            AttributeHelper.GetPropertyAttribute<ColumnAttribute>(new PropertyAttributesClass().GetType()
-                .GetProperties()[0]);
-
-        // Assert
-        Assert.IsInstanceOf<ColumnAttribute>(result);
-    }
-
-    [Test]
-    public void SqliteCommandGenerator_GetPropertyAttribute_ShouldReturnNull_WhenThePropertyDoesNotContainTheSpecifiedAttribute()
-    {
-        // Act
-        CustomColumnAttribute result =
-            AttributeHelper.GetPropertyAttribute<CustomColumnAttribute>(new PropertyAttributesClass().GetType()
-                .GetProperties()[0]);
-
-        // Assert
-        Assert.IsNull(result);
-    }
-
-    #endregion
-
-    #region GetTableAttribute
-
-    [Test]
     public void
-        SqliteCommandGenerator_GetTableAttribute_ShouldThrowException_WhenTheSpecifiedClassDoesNotContainTheTableAttribute()
+        AttributeHelper_GetPropertyAttribute_ShouldReturnThePropertyAttribute_WhenThePropertyContainsAnAttributeOfTheSpecifiedType()
     {
-        InvalidTypeException exception = Assert.Throws<InvalidTypeException>(() => AttributeHelper.GetTableAttribute(typeof(object)));
-        Assert.AreEqual($"The {nameof(TableAttribute)} attribute is mandatory for SQLite commands.", exception.Message);
+        // Act
+        ColumnAttribute column =
+            AttributeHelper.GetPropertyAttribute<ColumnAttribute>(
+                typeof(ValidAttributeCombinationClass).GetProperties()[0]);
+
+        // Assert
+        Assert.IsNotNull(column);
     }
 
     [Test]
     public void
-        SqliteCommandGenerator_GetTableAttribute_ShouldNotThrowException_WhenTheSpecifiedClassContainsTheTableAttribute() =>
-        Assert.DoesNotThrow(() => AttributeHelper.GetTableAttribute(typeof(TableClass)));
+        AttributeHelper_GetPropertyAttribute_ShouldReturnNull_WhenThePropertyDoesNotContainAnAttributeOfTheSpecifiedType()
+    {
+        // Act
+        ForeignKeyColumnAttribute foreignKey =
+            AttributeHelper.GetPropertyAttribute<ForeignKeyColumnAttribute>(
+                typeof(ValidAttributeCombinationClass).GetProperties()[0]);
+
+        // Assert
+        Assert.IsNull(foreignKey);
+    }
 
     #endregion
 
     #region GetTypeAttribute
 
     [Test]
-    public void SqliteCommandGenerator_GetTypeAttribute_ShouldReturnTheAttribute_WhenTheClassContainsTheSpecifiedAttribute()
+    public void AttributeHelper_GetTypeAttribute_ShouldReturnTheAttribute_WhenTheClassContainsTheSpecifiedAttributeType()
     {
         // Act
-        TableAttribute result = AttributeHelper.GetTypeAttribute<TableAttribute>(typeof(TableClass));
+        TableAttribute table = AttributeHelper.GetTypeAttribute<TableAttribute>(typeof(NoPropertyTableAttributeClass));
 
         // Assert
-        Assert.IsInstanceOf<TableAttribute>(result);
+        Assert.IsNotNull(table);
+        Assert.AreEqual("TAB_TST_TEST", table.Name);
     }
 
     [Test]
-    public void SqliteCommandGenerator_GetTypeAttribute_ShouldReturnNull_WhenTheClassDoesNotContainTheSpecifiedAttribute()
+    public void AttributeHelper_GetTypeAttribute_ShouldReturnNull_WhenTheClassDoesNotContainTheSpecifiedAttributeType()
     {
         // Act
-        TableAttribute result =
-            AttributeHelper.GetTypeAttribute<TableAttribute>(typeof(object));
+        TableAttribute table = AttributeHelper.GetTypeAttribute<TableAttribute>(typeof(NoPropertyNoTableAttributeClass));
 
         // Assert
-        Assert.IsNull(result);
+        Assert.IsNull(table);
     }
+
+    #endregion
+
+    #region ValidatePropertyAttributes
+
+    [TestCaseSource(nameof(GenerateInvalidAttributeCombinationPropertyInfos))]
+    public void
+        AttributeHelper_ValidatePropertyAttributes_ShouldThrowException_WhenThePropertyAttributeCombinationIsInvalid(
+            PropertyInfo propInfo)
+    {
+        // Act & Assert
+        InvalidAttributeCombinationException exception =
+            Assert.Throws<InvalidAttributeCombinationException>(() =>
+                AttributeHelper.ValidatePropertyAttributes(propInfo));
+        Assert.AreEqual("Invalid property attribute combination.", exception.Message);
+    }
+
+    [TestCaseSource(nameof(GenerateValidAttributeCombinationPropertyInfos))]
+    public void
+        AttributeHelper_ValidatePropertyAttributes_ShouldNotThrowException_WhenThePropertyAttributeCombinationIsValid(
+            PropertyInfo propInfo) =>
+        // Act & Assert
+        Assert.DoesNotThrow(() => AttributeHelper.ValidatePropertyAttributes(propInfo));
+
+    #endregion
+
+    #region ValidatePropertyValue
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase(" ")]
+    public void AttributeHelper_ValidatePropertyValue_ShouldThrowException_WhenTheValueIsEmpty(string value)
+    {
+        const string fieldName = "fieldName";
+        const string propertyName = "parameterName";
+
+        // Act & Assert
+        ArgumentNullException exception =
+            Assert.Throws<ArgumentNullException>(() =>
+                AttributeHelper.ValidatePropertyValue(value, propertyName, fieldName));
+        Assert.AreEqual($"The {fieldName} must be filled. (Parameter '{propertyName}')", exception.Message);
+    }
+
+    [Test]
+    public void AttributeHelper_ValidatePropertyValue_ShouldNotThrowException_WhenTheValueIsFilled() =>
+        // Act & Assert
+        Assert.DoesNotThrow(() => AttributeHelper.ValidatePropertyValue("value", "propertyName", "fieldName"));
 
     #endregion
 
     #region Test cases sources
 
-    #region InvalidAttributeCombinationTestCases
-    /// <summary>
-    /// Generates invalid property attributes combination test cases.
-    /// </summary>
-    /// <returns></returns>
-    private static IEnumerable<TestCaseData> InvalidAttributeCombinationTestCases()
+    private static IEnumerable<PropertyInfo> GenerateInvalidAttributeCombinationPropertyInfos()
     {
-        yield return new TestCaseData(new ColumnAndCustomColumnCombinationClass().GetType().GetProperties()[0]);
-        yield return new TestCaseData(new ColumnAndForeignKeyColumnCombinationClass().GetType().GetProperties()[0]);
-        yield return new TestCaseData(new ColumnAndOneToManyDataCombinationClass().GetType().GetProperties()[0]);
-        yield return new TestCaseData(new ColumnAndManyToManyDataCombinationClass().GetType().GetProperties()[0]);
-        yield return new TestCaseData(new CustomAndForeignKeyColumnCombinationClass().GetType().GetProperties()[0]);
-        yield return new TestCaseData(new CustomColumnAndOneToManyDataCombinationClass().GetType().GetProperties()[0]);
-        yield return new TestCaseData(new CustomColumnAndManyToManyDataCombinationClass().GetType().GetProperties()[0]);
-        yield return new TestCaseData(new ForeignKeyColumnAndOneToManyDataCombinationClass().GetType().GetProperties()[0]);
-        yield return new TestCaseData(new ForeignKeyColumnAndManyToManyDataCombinationClass().GetType().GetProperties()[0]);
-        yield return new TestCaseData(new OneToManyAndManyToManyDataCombinationClass().GetType().GetProperties()[0]);
-    }
-    #endregion
+        PropertyInfo[] propInfos = typeof(InvalidAttributeCombinationClass).GetProperties();
 
-    #region ValidAttributeCombinationTestCases
-    /// <summary>
-    /// Generates valid property attributes combination test cases.
-    /// </summary>
-    /// <returns></returns>
-    private static IEnumerable<TestCaseData> ValidAttributeCombinationTestCases()
-    {
-        yield return new TestCaseData(new ColumnAndGroupingTargetCombinationClass().GetType().GetProperties()[0]);
-        yield return new TestCaseData(new ColumnAndSortingFieldCombinationClass().GetType().GetProperties()[0]);
-        yield return new TestCaseData(new CustomColumnAndGroupingTargetCombinationClass().GetType().GetProperties()[0]);
-        yield return new TestCaseData(new CustomColumnAndSortingFieldCombinationClass().GetType().GetProperties()[0]);
-        yield return new TestCaseData(new ForeignKeyColumnAndSortingFieldCombinationClass().GetType().GetProperties()[0]);
-        yield return new TestCaseData(new OneToManyAndGroupingTargetCombinationClass().GetType().GetProperties()[0]);
-        yield return new TestCaseData(new OneToManyAndSortingFieldCombinationClass().GetType().GetProperties()[0]);
-        yield return new TestCaseData(new GroupingTargetAndSortingFieldCombinationClass().GetType().GetProperties()[0]);
+        yield return propInfos[0];
+        yield return propInfos[1];
+        yield return propInfos[2];
+        yield return propInfos[3];
+        yield return propInfos[4];
+        yield return propInfos[5];
+        yield return propInfos[6];
+        yield return propInfos[7];
+        yield return propInfos[8];
+        yield return propInfos[9];
     }
-    #endregion
+
+    private static IEnumerable<PropertyInfo> GenerateValidAttributeCombinationPropertyInfos()
+    {
+        PropertyInfo[] propInfos = typeof(ValidAttributeCombinationClass).GetProperties();
+
+        yield return propInfos[0];
+        yield return propInfos[1];
+        yield return propInfos[2];
+        yield return propInfos[3];
+    }
 
     #endregion
 }

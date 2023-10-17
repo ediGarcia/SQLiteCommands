@@ -29,3 +29,6 @@ dotnet_diagnostic.CS8625.severity = suggestion
 
 # NUnit2015: Consider using Assert.That(actual, Is.SameAs(expected)) instead of Assert.AreSame(expected, actual)
 dotnet_diagnostic.NUnit2015.severity = suggestion
+
+# IDE0079: Remove unnecessary suppression
+dotnet_diagnostic.IDE0079.severity = warning

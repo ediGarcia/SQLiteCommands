@@ -1,30 +1,34 @@
 ﻿using SQLiteCommands.Helpers;
+using SQLiteCommands.Services;
+#pragma warning disable CS8601
 
 namespace SQLiteCommands;
 
 // ReSharper disable once InconsistentNaming
 public class SQLiteDatabase
 {
-    private readonly string _path;
+    #region Properties
 
-    // ReSharper disable once IdentifierTypo
+    /// <summary>
+    /// The current database file path.
+    /// </summary>
+    public string Path { get; }
+
+    #endregion
+
     public SQLiteDatabase(string path)
     {
-        AttributeHelper.CheckNullProperty(path, nameof(path), "SQLite database file path");
-        _path = path;
+        AttributeHelper.ValidatePropertyValue(path, nameof(path), "SQLite database file path");
+        Path = path;
     }
 
     #region Public Methods
 
-    #region Insert
-    /// <summary>
-    /// Insert new data into the database.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="data"></param>
-    public void Insert<T>(params T[] data) =>
-        SQLiteCommands.Insert(_path, data);
-    #endregion
+    public List<T> Select<T>(T filter = default) =>
+        DatabaseService.Select(Path, filter);
+
+    public T SelectSingle<T>(T filter = default) =>
+        DatabaseService.SelectSingle(Path, filter);
 
     #endregion
 }

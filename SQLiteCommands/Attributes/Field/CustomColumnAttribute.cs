@@ -16,7 +16,7 @@ public class CustomColumnAttribute : Attribute
 
     public CustomColumnAttribute(string customData)
     {
-        AttributeHelper.CheckNullProperty(customData, nameof(customData), "custom column's data");
+        AttributeHelper.ValidatePropertyValue(customData, nameof(customData), "custom column's data");
         CustomData = customData;
     }
 }

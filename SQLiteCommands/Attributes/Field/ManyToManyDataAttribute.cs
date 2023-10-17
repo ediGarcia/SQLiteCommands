@@ -8,25 +8,63 @@ public class ManyToManyDataAttribute : Attribute
     #region Properties
 
     /// <summary>
-    /// The junction table name.
+    /// Gets or sets whether the target entries should be removed from their tables when the parent entry is deleted.
     /// </summary>
-    public string JunctionTable { get; }
+    public bool CascadeDelete { get; set; }
 
     /// <summary>
-    /// Gets and sets the junction table target column (needed if the junction table column name is different from the source table's column).
+    /// Gets or sets whether the target entries should be insert or updated from their tables when the parent entry is inserted or updated.
     /// </summary>
-    public string JunctionTableColumn { get; set; }
+    public bool CascadeInsertOrUpdate { get; set; }
 
     /// <summary>
-    /// Gets and sets the source table column (needed if the table has more than one primary key).
+    /// Gets or sets whether the target entries should be fetched from their tables when the parent entry is fetched.
+    /// </summary>
+    public bool CascadeSelect { get; set; } = true;
+
+    /// <summary>
+    /// The join table name.
+    /// </summary>
+    public string JoinTable { get; }
+
+    /// <summary>
+    /// Gets or sets the join table key that points to the current table.
+    /// </summary>
+    public string JoinTableSourcePrimaryKey { get; }
+
+    /// <summary>
+    /// Gets or sets the join table key that points to the target type table.
+    /// </summary>
+    public string JoinTableTargetPrimaryKey { get; }
+
+    /// <summary>
+    /// Gets or sets the current table column that is pointed by the join table primary key (if empty, the first primary key of the current table will be used).
     /// </summary>
     public string LocalColumn { get; set; }
 
+    /// <summary>
+    /// Gets or sets the target table column that is pointed by the join table primary key (if empty, the first primary key of the target table will be used).
+    /// </summary>
+    public string TargetTableColumn { get; set; }
+
     #endregion
 
-    public ManyToManyDataAttribute(string junctionTable)
+    public ManyToManyDataAttribute(string joinTable, string joinTableSourcePrimaryKey, string joinTableTargetPrimaryKey)
     {
-        AttributeHelper.CheckNullProperty(junctionTable, nameof(junctionTable), "junction table name");
-        JunctionTable = junctionTable;
+        AttributeHelper.ValidatePropertyValue(joinTable, nameof(joinTable), "join table name");
+
+        AttributeHelper.ValidatePropertyValue(
+            joinTableSourcePrimaryKey,
+            nameof(joinTableSourcePrimaryKey),
+            "join table source primary key name");
+
+        AttributeHelper.ValidatePropertyValue(
+            joinTableTargetPrimaryKey, 
+            nameof(joinTableTargetPrimaryKey),
+            "join table target primary key name");
+
+        JoinTable = joinTable;
+        JoinTableSourcePrimaryKey = joinTableSourcePrimaryKey;
+        JoinTableTargetPrimaryKey = joinTableTargetPrimaryKey;
     }
 }
